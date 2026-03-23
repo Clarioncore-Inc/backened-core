@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+alembic
+python-jose[cryptography]
+passlib[argon2]
+python-dotenv
+fastapi-utils
+fastapi-pagination
+pydantic[email]
+python-multipart
+fastapi[standard]
+typing-inspect==0.9.0
+sqladmin
+itsdangerous==2.2.0
