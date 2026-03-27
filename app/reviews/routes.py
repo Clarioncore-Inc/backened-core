@@ -35,9 +35,9 @@ class CourseReviewsView:
     db: Session = Depends(get_db)
 
     @course_reviews_router.get(
-        "/courses/{course_id}/reviews", response_model=List[ReviewResponse]
+        "/courses/{id}/reviews", response_model=List[ReviewResponse]
     )
-    def get_course_reviews(self, course_id: UUID):
+    def get_course_reviews(self, id: UUID):
         return service_locator.review_service.get_course_reviews(
-            db=self.db, course_id=course_id
+            db=self.db, course_id=id
         )

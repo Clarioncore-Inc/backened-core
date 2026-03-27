@@ -15,12 +15,12 @@ from app.settings import ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SECRET_KEY
 # ── Domain model imports ───────────────────────────────────────────────────────
 from app.accounts.models import User
 from app.courses.models import Course
-from app.lessons.models import Lesson
+from app.lessons.models import Lesson, Section
 from app.enrollments.models import Enrollment
 from app.progress.models import LessonProgress
 from app.payments.models import Payment, Payout
 from app.reviews.models import Review
-from app.psychologist.models import PsychologistProfile, Booking
+from app.psychologist.models import PsychologistProfile, Booking, PsychologistInvite
 
 
 # ── Authentication backend ─────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ class LessonAdmin(ModelView, model=Lesson):
     name = "Lesson"
     name_plural = "Lessons"
     icon = "fa-solid fa-book-open"
-    column_list = [Lesson.id, Lesson.course_id, Lesson.title,
+    column_list = [Lesson.id, Lesson.title,
                    Lesson.kind, Lesson.position, Lesson.is_free, Lesson.like_count]
     column_searchable_list = [Lesson.title]
     column_filters = [
@@ -175,6 +175,31 @@ class PsychologistProfileAdmin(ModelView, model=PsychologistProfile):
     ]
 
 
+class SectionAdmin(ModelView, model=Section):
+    name = "Section"
+    name_plural = "Sections"
+    icon = "fa-solid fa-list"
+    column_list = [Section.id, Section.title, Section.course_id,
+                   Section.order, Section.duration, Section.created_at]
+    column_searchable_list = [Section.title]
+    column_sortable_list = [Section.order, Section.created_at]
+
+
+class PsychologistInviteAdmin(ModelView, model=PsychologistInvite):
+    name = "Psychologist Invite"
+    name_plural = "Psychologist Invites"
+    icon = "fa-solid fa-envelope"
+    column_list = [PsychologistInvite.id, PsychologistInvite.email,
+                   PsychologistInvite.status, PsychologistInvite.invited_by,
+                   PsychologistInvite.expires_at, PsychologistInvite.created_at]
+    column_searchable_list = [PsychologistInvite.email]
+    column_filters = [
+        AllUniqueStringValuesFilter(PsychologistInvite.status, title="Status"),
+    ]
+    column_sortable_list = [PsychologistInvite.created_at]
+    can_delete = False
+
+
 # ── Factory ────────────────────────────────────────────────────────────────────
 def create_admin(app) -> Admin:
     authentication_backend = AdminAuth(secret_key=ADMIN_SECRET_KEY)
@@ -186,9 +211,10 @@ def create_admin(app) -> Admin:
         base_url="/admin",
     )
     for view in [
-        UserAdmin, CourseAdmin, LessonAdmin,
+        UserAdmin, CourseAdmin, SectionAdmin, LessonAdmin,
         EnrollmentAdmin, PaymentAdmin, PayoutAdmin, ReviewAdmin,
         LessonProgressAdmin, BookingAdmin, PsychologistProfileAdmin,
+        PsychologistInviteAdmin,
     ]:
         admin.add_view(view)
     return admin

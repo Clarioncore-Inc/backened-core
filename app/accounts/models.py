@@ -32,6 +32,7 @@ class User(BaseModel):
     streak = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_suspended = Column(Boolean, default=False)
+    location = Column(String, nullable=True)
 
     # Relationships
     courses = relationship("Course", back_populates="creator",

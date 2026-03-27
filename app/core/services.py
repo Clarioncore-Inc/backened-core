@@ -1,35 +1,26 @@
-"""
-Abstract interface documentation for GeneralService.
-The concrete implementation lives in app.general.service.
-"""
-from typing import Any, Dict, List, Optional, Type, TypeVar
-from sqlalchemy.orm import Session
+import httpx
+from app.settings import SLACK_ACCESS_TOKEN, SLACK_CHANNEL_ID
+import threading
+import logging
 
-ModelType = TypeVar("ModelType")
+logger = logging.getLogger(__name__)
 
 
-class AbstractGeneralService:
-    """Describes the contract that GeneralService must fulfil."""
+class CoreService:
 
-    def create(self, db: Session, data: Dict[str, Any], model: Type) -> Any:
-        raise NotImplementedError
+    def __init__(self):
+        pass
 
-    def get(self, db: Session, key: Any, model: Type) -> Optional[Any]:
-        raise NotImplementedError
+    def send_email(self, email: str, message: str) -> None:
+        print(f"[EMAIL] To: {email}\n{message}")
 
-    def list_data(self, db: Session, model: Type) -> List[Any]:
-        raise NotImplementedError
-
-    def filter_data(
-        self, db: Session, model: Type, filters: Dict[str, Any]
-    ) -> List[Any]:
-        raise NotImplementedError
-
-    def update_data(
-        self, db: Session, key: Any, data: Dict[str, Any], model: Type
-    ) -> Optional[Any]:
-        raise NotImplementedError
-
-    def delete(self, db: Session, key: Any, model: Type) -> bool:
-        raise NotImplementedError
-
+    def send_slack_message(self, message: str):
+        def _post():
+            response = httpx.post(
+                "https://slack.com/api/chat.postMessage",
+                headers={"Authorization": f"Bearer {SLACK_ACCESS_TOKEN}"},
+                json={"channel": SLACK_CHANNEL_ID, "text": message},
+            )
+            logger.info(
+                f"[SLACK] status={response.status_code} body={response.json()}")
+        threading.Thread(target=_post, daemon=True).start()

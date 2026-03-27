@@ -50,19 +50,19 @@ class AdminView:
     def get_analytics(self):
         return service_locator.admin_service.get_analytics(db=self.db)
 
-    @router.put("/users/{user_id}/role", response_model=UserResponse)
-    def update_role(self, user_id: UUID, payload: RoleUpdateRequest):
+    @router.put("/users/{id}/role", response_model=UserResponse)
+    def update_role(self, id: UUID, payload: RoleUpdateRequest):
         user = service_locator.admin_service.update_user_role(
-            db=self.db, user_id=user_id, role=payload.role
+            db=self.db, user_id=id, role=payload.role
         )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
-    @router.put("/users/{user_id}/status", response_model=UserResponse)
-    def update_status(self, user_id: UUID, payload: StatusUpdateRequest):
+    @router.put("/users/{id}/status", response_model=UserResponse)
+    def update_status(self, id: UUID, payload: StatusUpdateRequest):
         user = service_locator.admin_service.update_user_status(
-            db=self.db, user_id=user_id, suspended=payload.suspended
+            db=self.db, user_id=id, suspended=payload.suspended
         )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -77,4 +77,3 @@ class AdminView:
         return service_locator.admin_service.update_settings(
             updates=payload.model_dump(exclude_unset=True)
         )
-

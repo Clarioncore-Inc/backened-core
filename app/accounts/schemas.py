@@ -14,6 +14,7 @@ class UserBase(BaseSchema):
     bio: Optional[str] = None
     country: Optional[str] = None
     phone_number: Optional[str] = None
+    location: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -27,6 +28,7 @@ class UserUpdate(BaseSchema):
     country: Optional[str] = None
     phone_number: Optional[str] = None
     role: Optional[str] = None
+    location: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -37,6 +39,7 @@ class UserResponse(UserBase):
     is_suspended: bool
     created_at: datetime
     updated_at: datetime
+    location: Optional[str] = None
 
 
 class UserPublic(BaseSchema):
@@ -47,4 +50,4 @@ class UserPublic(BaseSchema):
     xp: int
     streak: int
     avatar: Optional[str] = None
-
+    location: Optional[str] = None

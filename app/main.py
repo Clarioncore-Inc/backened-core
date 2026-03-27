@@ -10,7 +10,7 @@ from app.admin_ui import create_admin
 from app.authentication.routes import router as auth_router
 from app.accounts.routes import router as accounts_router
 from app.courses.routes import router as courses_router
-from app.lessons.routes import router as lessons_router, bookmarks_router, comments_router
+from app.lessons.routes import router as lessons_router, bookmarks_router, comments_router, sections_router
 from app.enrollments.routes import router as enrollments_router
 from app.progress.routes import router as progress_router
 from app.payments.routes import router as payments_router, payouts_router
@@ -44,6 +44,7 @@ app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(accounts_router, prefix=API_PREFIX)
 app.include_router(courses_router, prefix=API_PREFIX)
 app.include_router(lessons_router, prefix=API_PREFIX)
+app.include_router(sections_router, prefix=API_PREFIX)
 app.include_router(bookmarks_router, prefix=API_PREFIX)
 app.include_router(comments_router, prefix=API_PREFIX)
 app.include_router(enrollments_router, prefix=API_PREFIX)

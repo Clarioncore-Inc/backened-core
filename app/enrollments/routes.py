@@ -33,11 +33,11 @@ class EnrollmentsView:
             course_id=payload.course_id,
         )
 
-    @router.delete("/{enrollment_id}", status_code=204)
-    def unenroll(self, enrollment_id: UUID):
+    @router.delete("/{id}", status_code=204)
+    def unenroll(self, id: UUID):
         success = service_locator.enrollment_service.unenroll(
             db=self.db,
-            enrollment_id=enrollment_id,
+            enrollment_id=id,
             user_id=self.current_user.id,
         )
         if not success:

@@ -32,11 +32,11 @@ class PaymentsView:
             db=self.db, user_id=self.current_user.id, data=data
         )
 
-    @router.put("/{payment_id}", response_model=PaymentResponse)
-    def update_payment(self, payment_id: UUID, payload: PaymentUpdate):
+    @router.put("/{id}", response_model=PaymentResponse)
+    def update_payment(self, id: UUID, payload: PaymentUpdate):
         payment = service_locator.payment_service.update_payment(
             db=self.db,
-            payment_id=payment_id,
+            payment_id=id,
             data=payload.model_dump(exclude_unset=True),
         )
         if not payment:

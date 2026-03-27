@@ -26,22 +26,22 @@ class CreatorView:
             db=self.db, user_id=self.current_user.id
         )
 
-    @router.get("/courses/{course_id}/subscribers", response_model=List[EnrollmentResponse])
-    def get_subscribers(self, course_id: UUID):
+    @router.get("/courses/{id}/subscribers", response_model=List[EnrollmentResponse])
+    def get_subscribers(self, id: UUID):
         return service_locator.enrollment_service.get_course_enrollments(
-            db=self.db, course_id=course_id
+            db=self.db, course_id=id
         )
 
-    @router.get("/courses/{course_id}/analytics")
-    def get_analytics(self, course_id: UUID) -> Dict[str, Any]:
+    @router.get("/courses/{id}/analytics")
+    def get_analytics(self, id: UUID) -> Dict[str, Any]:
         enrollments = service_locator.enrollment_service.get_course_enrollments(
-            db=self.db, course_id=course_id
+            db=self.db, course_id=id
         )
         from app.payments.models import Payment
         payments = (
             self.db.query(Payment)
             .filter(
-                Payment.course_id == course_id,
+                Payment.course_id == id,
                 Payment.status == "completed",
             )
             .all()
@@ -61,4 +61,3 @@ class CreatorView:
             db=self.db, creator_id=self.current_user.id
         )
         return {"earnings": earnings}
-

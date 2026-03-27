@@ -1,9 +1,17 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session
-from app.lessons.models import Lesson, LessonLike, LessonBookmark, LessonComment
+from sqlalchemy.orm import Session, joinedload
+from app.lessons.models import Lesson, LessonLike, LessonBookmark, LessonComment, Section
 
 
 class LessonService:
+    def get_section_with_lessons(self, db: Session, section_id) -> Optional[Section]:
+        return (
+            db.query(Section)
+            .options(joinedload(Section.lessons))
+            .filter(Section.id == section_id)
+            .first()
+        )
+
     def get_comments(self, db: Session, lesson_id) -> List[LessonComment]:
         return (
             db.query(LessonComment)
@@ -68,4 +76,3 @@ class LessonService:
         db.commit()
         db.refresh(comment)
         return comment
-

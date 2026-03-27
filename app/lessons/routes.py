@@ -1,22 +1,67 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi_utils.cbv import cbv
 from sqlalchemy.orm import Session
 
 from app.core.dependency_injection import service_locator
-from app.lessons.models import Lesson
+from app.lessons.models import Lesson, Section
 from app.lessons.schemas import (
     BookmarkResponse,
     CommentCreate,
     CommentResponse,
     LessonCreate,
     LessonResponse,
+    LessonUpdate,
+    SectionCreate,
+    SectionResponse,
+    SectionUpdate,
 )
 from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
 from app.accounts.models import User
+
+sections_router = APIRouter(prefix="/sections", tags=["sections"])
+
+
+@cbv(sections_router)
+class SectionsView:
+    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user)
+
+    @sections_router.post("/", response_model=SectionResponse, status_code=201)
+    def create_section(self, payload: SectionCreate):
+        data = payload.model_dump()
+        return service_locator.general_service.create(db=self.db, data=data, model=Section)
+
+    @sections_router.get("/{id}", response_model=SectionResponse)
+    def get_section(self, id: UUID):
+        section = service_locator.lesson_service.get_section_with_lessons(
+            db=self.db, section_id=id
+        )
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+        return section
+
+    @sections_router.put("/{id}", response_model=SectionResponse)
+    def update_section(self, id: UUID, payload: SectionUpdate):
+        section = service_locator.general_service.update_data(
+            db=self.db, key=id, data=payload.model_dump(exclude_unset=True), model=Section
+        )
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+        return section
+
+    @sections_router.delete("/{id}", status_code=204)
+    def delete_section(self, id: UUID):
+        section = service_locator.general_service.get(
+            db=self.db, key=id, model=Section)
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+        service_locator.general_service.delete(
+            db=self.db, key=id, model=Section)
+
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 
@@ -34,52 +79,66 @@ class LessonsView:
         data = payload.model_dump()
         return service_locator.general_service.create(db=self.db, data=data, model=Lesson)
 
-    @router.get("/{lesson_id}", response_model=LessonResponse)
-    def get_lesson(self, lesson_id: UUID):
+    @router.get("/{id}", response_model=LessonResponse)
+    def get_lesson(self, id: UUID):
         lesson = service_locator.general_service.get(
-            db=self.db, key=lesson_id, model=Lesson)
+            db=self.db, key=id, model=Lesson)
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
         return lesson
 
-    @router.get("/{lesson_id}/comments", response_model=List[CommentResponse])
-    def get_comments(self, lesson_id: UUID):
-        return service_locator.lesson_service.get_comments(db=self.db, lesson_id=lesson_id)
-
-    @router.post("/{lesson_id}/like")
-    def like_lesson(
+    @router.put("/{id}", response_model=LessonResponse)
+    def update_lesson(
         self,
-        lesson_id: UUID,
+        id: UUID,
+        payload: LessonUpdate,
         current_user: User = Depends(get_current_active_user),
     ):
+        lesson = service_locator.general_service.update_data(
+            db=self.db, key=id, data=payload.model_dump(exclude_unset=True), model=Lesson
+        )
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        return lesson
+
+    @router.delete("/{id}", status_code=204)
+    def delete_lesson(
+        self,
+        id: UUID,
+        current_user: User = Depends(get_current_active_user),
+    ):
+        lesson = service_locator.general_service.get(
+            db=self.db, key=id, model=Lesson)
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        service_locator.general_service.delete(
+            db=self.db, key=id, model=Lesson)
+
+    @router.get("/{id}/comments", response_model=List[CommentResponse])
+    def get_comments(self, id: UUID):
+        return service_locator.lesson_service.get_comments(db=self.db, lesson_id=id)
+
+    @router.post("/{id}/like")
+    def like_lesson(self, id: UUID, current_user: User = Depends(get_current_active_user)):
         lesson = service_locator.lesson_service.add_like(
-            db=self.db, user_id=current_user.id, lesson_id=lesson_id
+            db=self.db, user_id=current_user.id, lesson_id=id
         )
         return {"success": True, "likes": lesson.like_count if lesson else 0}
 
-    @router.delete("/{lesson_id}/like")
-    def unlike_lesson(
-        self,
-        lesson_id: UUID,
-        current_user: User = Depends(get_current_active_user),
-    ):
+    @router.delete("/{id}/like")
+    def unlike_lesson(self, id: UUID, current_user: User = Depends(get_current_active_user)):
         lesson = service_locator.lesson_service.remove_like(
-            db=self.db, user_id=current_user.id, lesson_id=lesson_id
+            db=self.db, user_id=current_user.id, lesson_id=id
         )
         return {"success": True, "likes": lesson.like_count if lesson else 0}
 
-    @router.post("/{lesson_id}/bookmark", response_model=BookmarkResponse)
-    def bookmark_lesson(
-        self,
-        lesson_id: UUID,
-        current_user: User = Depends(get_current_active_user),
-    ):
+    @router.post("/{id}/bookmark", response_model=BookmarkResponse)
+    def bookmark_lesson(self, id: UUID, current_user: User = Depends(get_current_active_user)):
         return service_locator.lesson_service.add_bookmark(
-            db=self.db, user_id=current_user.id, lesson_id=lesson_id
+            db=self.db, user_id=current_user.id, lesson_id=id
         )
 
 
-# Bookmarks endpoint (outside /lessons prefix — kept here for service locality)
 bookmarks_router = APIRouter(prefix="/bookmarks", tags=["lessons"])
 
 
@@ -95,7 +154,6 @@ class BookmarksView:
         )
 
 
-# Comments endpoint (standalone /comments router)
 comments_router = APIRouter(prefix="/comments", tags=["lessons"])
 
 

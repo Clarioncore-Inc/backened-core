@@ -1,8 +1,8 @@
 from typing import Any, List, Optional
 from uuid import UUID
 from datetime import datetime
-from pydantic import Field
 from app.core.schema import BaseSchema
+from app.lessons.schemas import LessonCreate, LessonResponse, SectionResponse
 
 
 class CourseCreate(BaseSchema):
@@ -13,16 +13,26 @@ class CourseCreate(BaseSchema):
     org_id: Optional[UUID] = None
     is_public: bool = True
     cover_image: Optional[str] = None
+    sub_title: Optional[str] = None
     subcategory: Optional[str] = None
     price: float = 0
     currency: str = "USD"
     estimated_hours: float = 0
     tags: Optional[List[str]] = None
     status: str = "draft"
+    course_goals: Optional[List[str]] = None
+    learning_objectives: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
+    who_this_course_is_for: Optional[str] = None
+    enable_discussions: bool = True
+    enable_reviews: bool = True
+    enable_certificates: bool = False
+    maximum_students: Optional[int] = None
 
 
 class CourseUpdate(BaseSchema):
     title: Optional[str] = None
+    sub_title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
     level: Optional[str] = None
@@ -34,16 +44,25 @@ class CourseUpdate(BaseSchema):
     estimated_hours: Optional[float] = None
     tags: Optional[List[str]] = None
     status: Optional[str] = None
+    course_goals: Optional[List[str]] = None
+    learning_objectives: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
+    who_this_course_is_for: Optional[str] = None
+    enable_discussions: Optional[bool] = None
+    enable_reviews: Optional[bool] = None
+    enable_certificates: Optional[bool] = None
+    maximum_students: Optional[int] = None
 
 
 class CourseResponse(BaseSchema):
     id: UUID
     title: str
+    sub_title: Optional[str] = None
     description: str
     category: str
     subcategory: Optional[str] = None
     level: str
-    price: Any  # Numeric can be Decimal
+    price: Any
     currency: str
     is_public: bool
     status: str
@@ -55,11 +74,30 @@ class CourseResponse(BaseSchema):
     estimated_hours: float
     tags: Optional[List[str]] = None
     cover_image: Optional[str] = None
+    course_goals: Optional[List[str]] = None
+    learning_objectives: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
+    who_this_course_is_for: Optional[str] = None
+    enable_discussions: bool
+    enable_reviews: bool
+    enable_certificates: bool
+    maximum_students: Optional[int] = None
     published_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
 
-class CourseWithLessons(CourseResponse):
-    lessons: List[Any] = Field(default_factory=list)
+class CourseWithSections(CourseResponse):
+    sections: List[SectionResponse] = []
 
+
+class BulkSectionCreate(BaseSchema):
+    title: str
+    order: int = 0
+    url: Optional[str] = None
+    duration: int = 0
+    lessons: List[LessonCreate] = []
+
+
+class CourseBulkCreate(CourseCreate):
+    sections: List[BulkSectionCreate] = []

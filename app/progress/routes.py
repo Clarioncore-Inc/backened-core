@@ -25,7 +25,7 @@ class ProgressView:
             db=self.db, user_id=self.current_user.id, data=data
         )
 
-    @router.get("/{lesson_id}", response_model=ProgressResponse)
+    @router.get("/lesson/{lesson_id}", response_model=ProgressResponse)
     def get_progress(self, lesson_id: UUID):
         record = service_locator.progress_service.get_progress(
             db=self.db, user_id=self.current_user.id, lesson_id=lesson_id

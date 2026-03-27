@@ -6,6 +6,8 @@ config = {
     **os.environ,
 }
 
+FRONTEND_URL = config.get("FRONTEND_URL", "http://localhost:3000")
+
 APP_NAME = config.get("APP_NAME", "CerebroLearn")
 DATABASE_NAME = config.get("DATABASE_NAME", "Cerebrolearn")
 DATABASE_USER = config.get("DATABASE_USER", "postgres")
@@ -19,12 +21,19 @@ ALGORITHM = config.get("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     config.get("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))
 
+DATABASE_SSL = config.get("DATABASE_SSL", "")
+_ssl_suffix = "?sslmode=require" if DATABASE_SSL == "require" else ""
 DATABASE_URL = (
     f"postgresql://{DATABASE_USER}:{DATABASE_PASSWORD}"
-    f"@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
+    f"@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}{_ssl_suffix}"
 )
 
 # ── Admin UI ──────────────────────────────────────────────────────────────────
 ADMIN_USERNAME = config.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = config.get("ADMIN_PASSWORD", "changeme")
 ADMIN_SECRET_KEY = config.get("ADMIN_SECRET_KEY", "changeme-admin-secret")
+
+
+SLACK_ACCESS_TOKEN = config.get("SLACK_ACCESS_TOKEN", "")
+SLACK_REFRESH_TOKEN = config.get("SLACK_REFRESH_TOKEN", "")
+SLACK_CHANNEL_ID = config.get("SLACK_CHANNEL_ID", "")
