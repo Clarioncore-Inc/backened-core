@@ -7,6 +7,8 @@ config = {
 }
 
 FRONTEND_URL = config.get("FRONTEND_URL", "http://localhost:3000")
+API_BASE_URL = config.get(
+    "API_BASE_URL", "https://backened-core.onrender.com/health")
 
 APP_NAME = config.get("APP_NAME", "CerebroLearn")
 DATABASE_NAME = config.get("DATABASE_NAME", "Cerebrolearn")

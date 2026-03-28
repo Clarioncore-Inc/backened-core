@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 from uuid import UUID
 from datetime import datetime
 from app.core.schema import BaseSchema
@@ -9,7 +9,7 @@ class CourseCreate(BaseSchema):
     title: str
     description: str
     category: str
-    level: str = "beginner"
+    level: Literal["beginner", "intermediate", "advanced"] = "beginner"
     org_id: Optional[UUID] = None
     is_public: bool = True
     cover_image: Optional[str] = None
@@ -19,7 +19,8 @@ class CourseCreate(BaseSchema):
     currency: str = "USD"
     estimated_hours: float = 0
     tags: Optional[List[str]] = None
-    status: str = "draft"
+    status: Literal["draft", "published", "archived"] = "draft"
+
     course_goals: Optional[List[str]] = None
     learning_objectives: Optional[List[str]] = None
     prerequisites: Optional[List[str]] = None

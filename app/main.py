@@ -19,11 +19,14 @@ from app.psychologist.routes import router as psychologist_router
 from app.admin_panel.routes import router as admin_router
 from app.creator.routes import router as creator_router
 from app.gamification.routes import router as leaderboard_router
+from .ping_render import lifespan
+
 
 app = FastAPI(
     title=APP_NAME,
     description="CerebroLearn REST API — FastAPI/PostgreSQL backend",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # ── Middleware ────────────────────────────────────────────────────────────────
