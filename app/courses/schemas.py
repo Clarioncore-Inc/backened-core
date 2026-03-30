@@ -16,6 +16,7 @@ class CourseCreate(BaseSchema):
     sub_title: Optional[str] = None
     subcategory: Optional[str] = None
     price: float = 0
+    discount: Optional[float] = None
     currency: str = "USD"
     estimated_hours: float = 0
     tags: Optional[List[str]] = None
@@ -41,6 +42,7 @@ class CourseUpdate(BaseSchema):
     cover_image: Optional[str] = None
     subcategory: Optional[str] = None
     price: Optional[float] = None
+    discount: Optional[float] = None
     currency: Optional[str] = None
     estimated_hours: Optional[float] = None
     tags: Optional[List[str]] = None
@@ -63,7 +65,8 @@ class CourseResponse(BaseSchema):
     category: str
     subcategory: Optional[str] = None
     level: str
-    price: Any
+    price: float
+    discount: Optional[float] = None
     currency: str
     is_public: bool
     status: str
