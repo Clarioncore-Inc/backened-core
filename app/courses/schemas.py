@@ -92,12 +92,17 @@ class CourseWithSections(CourseResponse):
     sections: List[SectionResponse] = []
 
 
+class BulkLessonCreate(LessonCreate):
+    section_id: Optional[UUID] = None
+
+
 class BulkSectionCreate(BaseSchema):
+
     title: str
     order: int = 0
     url: Optional[str] = None
     duration: int = 0
-    lessons: List[LessonCreate] = []
+    lessons: List[BulkLessonCreate] = []
 
 
 class CourseBulkCreate(CourseCreate):
