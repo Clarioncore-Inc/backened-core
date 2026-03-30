@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey
 from app.core.models import BaseModel
 
-LevelEnum = ENUM("beginner", "intermediate", "advanced",
+LevelEnum = ENUM("beginner", "intermediate", "advanced", "all_levels",
                  name="level_enum", create_type=True)
 CourseStatusEnum = ENUM("draft", "published", "archived",
                         name="course_status_enum", create_type=True)

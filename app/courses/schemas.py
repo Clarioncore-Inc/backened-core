@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import datetime
 from app.core.schema import BaseSchema
 from app.lessons.schemas import LessonCreate, LessonResponse, SectionResponse
+from app.reviews.schemas import ReviewResponse
 
 
 class CourseCreate(BaseSchema):
@@ -93,6 +94,7 @@ class CourseResponse(BaseSchema):
 
 class CourseWithSections(CourseResponse):
     sections: List[SectionResponse] = []
+    reviews: List[ReviewResponse] = []
 
 
 class BulkLessonCreate(LessonCreate):
@@ -110,3 +112,26 @@ class BulkSectionCreate(BaseSchema):
 
 class CourseBulkCreate(CourseCreate):
     sections: List[BulkSectionCreate] = []
+
+
+class BulkLessonUpdate(BaseSchema):
+    id: Optional[UUID] = None
+    title: Optional[str] = None
+    kind: Optional[str] = None
+    content: Optional[Any] = None
+    position: Optional[int] = None
+    duration_minutes: Optional[int] = None
+    is_free: Optional[bool] = None
+
+
+class BulkSectionUpdate(BaseSchema):
+    id: Optional[UUID] = None
+    title: Optional[str] = None
+    order: Optional[int] = None
+    url: Optional[str] = None
+    duration: Optional[int] = None
+    lessons: Optional[List[BulkLessonUpdate]] = None
+
+
+class CourseBulkUpdate(CourseUpdate):
+    sections: Optional[List[BulkSectionUpdate]] = None

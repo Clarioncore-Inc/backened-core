@@ -10,6 +10,7 @@ from app.core.dependency_injection import service_locator
 from app.courses.models import Course
 from app.courses.schemas import (
     CourseBulkCreate,
+    CourseBulkUpdate,
     CourseCreate,
     CourseResponse,
     CourseUpdate,
@@ -87,6 +88,27 @@ class CoursesView:
             data=payload.model_dump(exclude_unset=True),
             model=Course,
         )
+
+    @router.put("/{id}/bulk", response_model=CourseWithSections)
+    def update_course_bulk(
+        self,
+        id: UUID,
+        payload: CourseBulkUpdate,
+        current_user: User = Depends(get_current_active_user),
+    ):
+        course = service_locator.general_service.get(
+            db=self.db, key=id, model=Course)
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+        if not service_locator.course_service.is_owner_or_admin(course, current_user):
+            raise HTTPException(status_code=403, detail="Forbidden")
+        data = payload.model_dump(exclude_unset=True)
+        result = service_locator.course_service.update_bulk(
+            db=self.db, course_id=id, course_data=data
+        )
+        if not result:
+            raise HTTPException(status_code=404, detail="Course not found")
+        return result
 
     @router.delete("/{id}", status_code=204)
     def delete_course(
