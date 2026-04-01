@@ -10,7 +10,8 @@ class CourseCreate(BaseSchema):
     title: str
     description: str
     category: str
-    level: Literal["beginner", "intermediate", "advanced"] = "beginner"
+    level: Literal["beginner", "intermediate",
+                   "advanced", "all_levels"] = "beginner"
     org_id: Optional[UUID] = None
     is_public: bool = True
     cover_image: Optional[str] = None
