@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependency_injection import service_locator
 from app.lessons.models import Lesson, Section
+from app.attachment.models import Attachment
 from app.lessons.schemas import (
     BookmarkResponse,
     CommentCreate,
@@ -32,8 +33,13 @@ class SectionsView:
 
     @sections_router.post("/", response_model=SectionResponse, status_code=201)
     def create_section(self, payload: SectionCreate):
-        data = payload.model_dump()
-        return service_locator.general_service.create(db=self.db, data=data, model=Section)
+        data = payload.model_dump(exclude={"attachment_ids"})
+        section = service_locator.general_service.create(db=self.db, data=data, model=Section)
+        if payload.attachment_ids:
+            section.attachments = self.db.query(Attachment).filter(Attachment.id.in_(payload.attachment_ids)).all()
+            self.db.commit()
+            self.db.refresh(section)
+        return section
 
     @sections_router.get("/{id}", response_model=SectionResponse)
     def get_section(self, id: UUID):
@@ -46,11 +52,16 @@ class SectionsView:
 
     @sections_router.put("/{id}", response_model=SectionResponse)
     def update_section(self, id: UUID, payload: SectionUpdate):
+        data = payload.model_dump(exclude_unset=True, exclude={"attachment_ids"})
         section = service_locator.general_service.update_data(
-            db=self.db, key=id, data=payload.model_dump(exclude_unset=True), model=Section
+            db=self.db, key=id, data=data, model=Section
         )
         if not section:
             raise HTTPException(status_code=404, detail="Section not found")
+        if payload.attachment_ids is not None:
+            section.attachments = self.db.query(Attachment).filter(Attachment.id.in_(payload.attachment_ids)).all()
+            self.db.commit()
+            self.db.refresh(section)
         return section
 
     @sections_router.delete("/{id}", status_code=204)

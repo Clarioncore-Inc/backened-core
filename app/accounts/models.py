@@ -44,3 +44,5 @@ class User(BaseModel):
     reviews = relationship("Review", back_populates="user")
     psychologist_profile = relationship(
         "PsychologistProfile", back_populates="user", uselist=False)
+
+    attachments = relationship("Attachment", back_populates="user")

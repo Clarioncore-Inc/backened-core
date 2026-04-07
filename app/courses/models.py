@@ -35,7 +35,7 @@ class Course(BaseModel):
     title = Column(String, nullable=False)
     sub_title = Column(String, nullable=True)
     description = Column(Text, nullable=False)
-    cover_image = Column(String, nullable=True)
+    cover_image = Column(ForeignKey("attachments.id"), nullable=True)
     category = Column(String, nullable=False)
     subcategory = Column(String, nullable=True)
     level = Column(LevelEnum, nullable=False, default="beginner")
@@ -54,7 +54,7 @@ class Course(BaseModel):
     estimated_hours = Column(Float, default=0)
     tags = Column(ARRAY(String), nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    thubnail = Column(String, nullable=True)
+    thumbnail = Column(ForeignKey("attachments.id"), nullable=True)
 
     course_goals = Column(ARRAY(String), nullable=True)
     learning_objectives = Column(ARRAY(String), nullable=True)
@@ -78,3 +78,8 @@ class Course(BaseModel):
         "Payment", back_populates="course", foreign_keys="Payment.course_id")
     collaborators = relationship(
         "CourseCollaborator", back_populates="course", cascade="all, delete-orphan")
+
+    cover_image_attachment = relationship("Attachment", foreign_keys=[
+                                          cover_image], uselist=False)
+    thumbnail_attachment = relationship(
+        "Attachment", foreign_keys=[thumbnail], uselist=False)

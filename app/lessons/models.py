@@ -1,14 +1,24 @@
-import uuid
-from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime
+from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy import ForeignKey
-from sqlalchemy.sql import func
+from sqlalchemy import ForeignKey, Table
 from app.core.models import BaseModel
+from app.database import Base
+
 
 LessonKindEnum = ENUM(
     "video", "interactive", "article", "quiz", "practice",
     name="lesson_kind_enum", create_type=True
+)
+
+
+section_attachments = Table(
+    "section_attachments",
+    Base.metadata,
+    Column("section_id", PG_UUID(as_uuid=True),
+           ForeignKey("sections.id"), primary_key=True),
+    Column("attachment_id", PG_UUID(as_uuid=True),
+           ForeignKey("attachments.id"), primary_key=True),
 )
 
 
@@ -20,11 +30,15 @@ class Section(BaseModel):
     course_id = Column(PG_UUID(as_uuid=True),
                        ForeignKey("courses.id"), nullable=False)
     url = Column(String, nullable=True)
+    # attachment_id = Column(ForeignKey("attachments.id"), nullable=True)
     course = relationship("Course", back_populates="sections")
     duration = Column(Integer, default=0)
 
     lessons = relationship(
         "Lesson", back_populates="section", cascade="all, delete-orphan")
+
+    attachments = relationship(
+        "Attachment", secondary=section_attachments, back_populates="sections")
 
 
 class Lesson(BaseModel):

@@ -2,6 +2,7 @@ from typing import Any, List, Optional
 from uuid import UUID
 from datetime import datetime
 from app.core.schema import BaseSchema
+from app.attachment.schemas import AttachmentResponse
 
 
 class SectionCreate(BaseSchema):
@@ -10,6 +11,7 @@ class SectionCreate(BaseSchema):
     order: int = 0
     url: Optional[str] = None
     duration: int = 0
+    attachment_ids: Optional[List[UUID]] = None
 
 
 class SectionUpdate(BaseSchema):
@@ -17,6 +19,7 @@ class SectionUpdate(BaseSchema):
     order: Optional[int] = None
     url: Optional[str] = None
     duration: Optional[int] = None
+    attachment_ids: Optional[List[UUID]] = None
 
 
 class LessonCreate(BaseSchema):
@@ -63,6 +66,7 @@ class SectionResponse(BaseSchema):
     created_at: datetime
     updated_at: datetime
     lessons: List[LessonResponse] = []
+    attachments: List[AttachmentResponse] = []
 
 
 class CommentCreate(BaseSchema):

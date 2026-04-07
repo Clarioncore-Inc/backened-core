@@ -21,15 +21,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # ── Import ALL models so Alembic can detect them for autogenerate ─────────────
-from app.database import Base  # noqa: E402  (pulls in Base.metadata)
-import app.accounts.models      # noqa: F401
-import app.courses.models       # noqa: F401
-import app.lessons.models       # noqa: F401
-import app.enrollments.models   # noqa: F401
-import app.progress.models      # noqa: F401
-import app.payments.models      # noqa: F401
-import app.reviews.models       # noqa: F401
-import app.psychologist.models  # noqa: F401
+from app.database import Base  # noqa
+from app.models import *  # noqa
 
 target_metadata = Base.metadata
 

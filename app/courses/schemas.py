@@ -4,6 +4,8 @@ from datetime import datetime
 from app.core.schema import BaseSchema
 from app.lessons.schemas import LessonCreate, LessonResponse, SectionResponse
 from app.reviews.schemas import ReviewResponse
+from pydantic import model_validator
+from app.attachment.schemas import AttachmentResponse
 
 
 class CourseCreate(BaseSchema):
@@ -14,7 +16,8 @@ class CourseCreate(BaseSchema):
                    "advanced", "all_levels"] = "beginner"
     org_id: Optional[UUID] = None
     is_public: bool = True
-    cover_image: Optional[str] = None
+    cover_image: Optional[UUID] = None
+    thumbnail: Optional[UUID] = None
     sub_title: Optional[str] = None
     subcategory: Optional[str] = None
     price: float = 0
@@ -41,7 +44,8 @@ class CourseUpdate(BaseSchema):
     category: Optional[str] = None
     level: Optional[str] = None
     is_public: Optional[bool] = None
-    cover_image: Optional[str] = None
+    cover_image: Optional[UUID] = None
+    thumbnail: Optional[UUID] = None
     subcategory: Optional[str] = None
     price: Optional[float] = None
     discount: Optional[float] = None
@@ -79,7 +83,8 @@ class CourseResponse(BaseSchema):
     total_enrollments: int
     estimated_hours: float
     tags: Optional[List[str]] = None
-    cover_image: Optional[str] = None
+    cover_image: Optional[AttachmentResponse] = None
+    thumbnail: Optional[AttachmentResponse] = None
     course_goals: Optional[List[str]] = None
     learning_objectives: Optional[List[str]] = None
     prerequisites: Optional[List[str]] = None
@@ -92,6 +97,15 @@ class CourseResponse(BaseSchema):
     created_at: datetime
     updated_at: datetime
 
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_attachments(cls, obj):
+        if hasattr(obj, "cover_image_attachment"):
+            obj.__dict__["cover_image"] = obj.cover_image_attachment
+        if hasattr(obj, "thumbnail_attachment"):
+            obj.__dict__["thumbnail"] = obj.thumbnail_attachment
+        return obj
+
 
 class CourseWithSections(CourseResponse):
     sections: List[SectionResponse] = []
@@ -103,12 +117,12 @@ class BulkLessonCreate(LessonCreate):
 
 
 class BulkSectionCreate(BaseSchema):
-
     title: str
     order: int = 0
     url: Optional[str] = None
     duration: int = 0
     lessons: List[BulkLessonCreate] = []
+    attachment_ids: Optional[List[UUID]] = None
 
 
 class CourseBulkCreate(CourseCreate):
@@ -132,6 +146,7 @@ class BulkSectionUpdate(BaseSchema):
     url: Optional[str] = None
     duration: Optional[int] = None
     lessons: Optional[List[BulkLessonUpdate]] = None
+    attachment_ids: Optional[List[UUID]] = None
 
 
 class CourseBulkUpdate(CourseUpdate):

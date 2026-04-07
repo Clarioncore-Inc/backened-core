@@ -2,6 +2,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from app.courses.models import Course
 from app.lessons.models import Section, Lesson
+from app.attachment.models import Attachment
 
 
 class CourseService:
@@ -23,9 +24,12 @@ class CourseService:
 
         for sec_data in sections_payload:
             lessons_payload = sec_data.pop("lessons", [])
+            attachment_ids = sec_data.pop("attachment_ids", None) or []
             section = Section(course_id=course.id, **sec_data)
             db.add(section)
             db.flush()
+            if attachment_ids:
+                section.attachments = db.query(Attachment).filter(Attachment.id.in_(attachment_ids)).all()
             for lesson_data in lessons_payload:
                 lesson_data.pop("section_id", None)
                 lesson = Lesson(section_id=section.id, **lesson_data)
@@ -53,6 +57,7 @@ class CourseService:
 
             for sec_data in sections_payload:
                 lessons_payload = sec_data.pop("lessons", None)
+                attachment_ids = sec_data.pop("attachment_ids", None)
                 sec_id = sec_data.pop("id", None)
 
                 if sec_id and sec_id in existing_section_map:
@@ -65,6 +70,9 @@ class CourseService:
                         course_id=course_id, **{k: v for k, v in sec_data.items() if v is not None})
                     db.add(section)
                     db.flush()
+
+                if attachment_ids is not None:
+                    section.attachments = db.query(Attachment).filter(Attachment.id.in_(attachment_ids)).all()
 
                 if lessons_payload is not None:
                     existing_lessons = db.query(Lesson).filter(
