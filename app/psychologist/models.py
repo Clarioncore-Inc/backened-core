@@ -2,8 +2,8 @@ from sqlalchemy import Boolean, Column, Date, DateTime, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey
-from sqlalchemy.sql import func
 from app.core.models import BaseModel
+from sqlalchemy.dialects.postgresql import ARRAY
 
 BookingStatusEnum = ENUM(
     "confirmed", "emergency", "cancelled", "completed",
@@ -31,7 +31,8 @@ class PsychologistProfile(BaseModel):
     years_of_experience = Column(String, nullable=True)
     specialization = Column(Text, nullable=True)
     about_you = Column(Text, nullable=True)
-
+    education_and_qualifications = Column(ARRAY(Text), nullable=True)
+    certification_and_additional_training = Column(ARRAY(Text), nullable=True)
     # Relationships
     user = relationship("User", back_populates="psychologist_profile")
 

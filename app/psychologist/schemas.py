@@ -18,6 +18,8 @@ class PsychologistProfileResponse(BaseSchema):
     specialization: Optional[str] = None
     about_you: Optional[str] = None
     location: Optional[str] = None
+    education_and_qualifications: Optional[list[str]] = None
+    certification_and_additional_training: Optional[list[str]] = None
 
 
 class PsychologistProfileUpdate(BaseSchema):
@@ -28,6 +30,8 @@ class PsychologistProfileUpdate(BaseSchema):
     specialization: Optional[str] = None
     about_you: Optional[str] = None
     location: Optional[str] = None
+    education_and_qualifications: Optional[list[str]] = None
+    certification_and_additional_training: Optional[list[str]] = None
 
 
 class PsychologistRegisterCreate(BaseSchema):
@@ -41,6 +45,8 @@ class PsychologistRegisterCreate(BaseSchema):
     specialization: Optional[str] = None
     about_you: Optional[str] = None
     location: Optional[str] = None
+    education_and_qualifications: Optional[list[str]] = None
+    certification_and_additional_training: Optional[list[str]] = None
 
 
 class InviteCreate(BaseSchema):
