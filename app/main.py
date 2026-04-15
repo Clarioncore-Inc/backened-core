@@ -10,7 +10,22 @@ from app.admin_ui import create_admin
 from app.authentication.routes import router as auth_router
 from app.accounts.routes import router as accounts_router
 from app.courses.routes import router as courses_router
-from app.lessons.routes import router as lessons_router, bookmarks_router, comments_router, sections_router
+from app.lessons.routes import (
+    bookmarks_router,
+    callout_lessons_router,
+    comments_router,
+    code_lessons_router,
+    heading_lessons_router,
+    hint_lessons_router,
+    image_lessons_router,
+    interactive_lessons_router,
+    problem_lessons_router,
+    quiz_lessons_router,
+    router as lessons_router,
+    sections_router,
+    text_lessons_router,
+    video_lessons_router,
+)
 from app.enrollments.routes import router as enrollments_router
 from app.progress.routes import router as progress_router
 from app.payments.routes import router as payments_router, payouts_router
@@ -51,6 +66,16 @@ app.include_router(lessons_router, prefix=API_PREFIX)
 app.include_router(sections_router, prefix=API_PREFIX)
 app.include_router(bookmarks_router, prefix=API_PREFIX)
 app.include_router(comments_router, prefix=API_PREFIX)
+app.include_router(video_lessons_router, prefix=API_PREFIX)
+app.include_router(text_lessons_router, prefix=API_PREFIX)
+app.include_router(quiz_lessons_router, prefix=API_PREFIX)
+app.include_router(interactive_lessons_router, prefix=API_PREFIX)
+app.include_router(problem_lessons_router, prefix=API_PREFIX)
+app.include_router(heading_lessons_router, prefix=API_PREFIX)
+app.include_router(image_lessons_router, prefix=API_PREFIX)
+app.include_router(code_lessons_router, prefix=API_PREFIX)
+app.include_router(hint_lessons_router, prefix=API_PREFIX)
+app.include_router(callout_lessons_router, prefix=API_PREFIX)
 app.include_router(enrollments_router, prefix=API_PREFIX)
 app.include_router(progress_router, prefix=API_PREFIX)
 app.include_router(payments_router, prefix=API_PREFIX)

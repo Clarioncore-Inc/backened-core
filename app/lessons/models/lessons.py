@@ -7,7 +7,8 @@ from app.database import Base
 
 
 LessonKindEnum = ENUM(
-    "video", "interactive", "article", "quiz", "practice",
+    "video", "text", "quiz", "interactive", "problem",
+    "heading", "image", "code", "hint", "callout",
     name="lesson_kind_enum", create_type=True
 )
 
@@ -47,13 +48,14 @@ class Lesson(BaseModel):
     section_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "sections.id"), nullable=False)
     title = Column(String, nullable=False)
-    kind = Column(LessonKindEnum, nullable=False, default="article")
+    kind = Column(LessonKindEnum, nullable=False, default="text")
     content = Column(JSONB, nullable=True)
     position = Column(Integer, default=0)
     duration_minutes = Column(Integer, default=0)
     is_free = Column(Boolean, default=False)
     like_count = Column(Integer, default=0)
     share_count = Column(Integer, default=0)
+    tag = Column(String, nullable=True)
 
     section = relationship("Section", back_populates="lessons")
     progress_records = relationship(
@@ -64,6 +66,27 @@ class Lesson(BaseModel):
         "LessonBookmark", back_populates="lesson", cascade="all, delete-orphan")
     comments = relationship(
         "LessonComment", back_populates="lesson", cascade="all, delete-orphan")
+
+    video_content = relationship(
+        "VideoLesson", back_populates="lesson", cascade="all, delete-orphan")
+    text_content = relationship(
+        "TextLesson", back_populates="lesson", cascade="all, delete-orphan")
+    quiz_content = relationship(
+        "QuizLesson", back_populates="lesson", cascade="all, delete-orphan")
+    interactive_content = relationship(
+        "InteractiveLesson", back_populates="lesson", cascade="all, delete-orphan")
+    problem_content = relationship(
+        "ProblemLesson", back_populates="lesson", cascade="all, delete-orphan")
+    heading_content = relationship(
+        "HeadingLesson", back_populates="lesson", cascade="all, delete-orphan")
+    image_content = relationship(
+        "ImageLesson", back_populates="lesson", cascade="all, delete-orphan")
+    code_content = relationship(
+        "CodeLesson", back_populates="lesson", cascade="all, delete-orphan")
+    hint_content = relationship(
+        "HintLesson", back_populates="lesson", cascade="all, delete-orphan")
+    callout_content = relationship(
+        "CalloutLesson", back_populates="lesson", cascade="all, delete-orphan")
 
 
 class LessonLike(BaseModel):

@@ -3,6 +3,18 @@ from uuid import UUID
 from datetime import datetime
 from app.core.schema import BaseSchema
 from app.attachment.schemas import AttachmentResponse
+from app.lessons.schemas.lesson_contents import (
+    CalloutLessonResponse,
+    CodeLessonResponse,
+    HeadingLessonResponse,
+    HintLessonResponse,
+    ImageLessonResponse,
+    InteractiveLessonResponse,
+    ProblemLessonResponse,
+    QuizLessonResponse,
+    TextLessonResponse,
+    VideoLessonResponse,
+)
 
 
 class SectionCreate(BaseSchema):
@@ -24,8 +36,9 @@ class SectionUpdate(BaseSchema):
 
 class LessonCreate(BaseSchema):
     section_id: UUID
+    tag: Optional[str] = None
     title: str
-    kind: str = "article"
+    kind: str = "text"
     content: Optional[Any] = None
     position: int = 0
     duration_minutes: int = 0
@@ -39,10 +52,12 @@ class LessonUpdate(BaseSchema):
     position: Optional[int] = None
     duration_minutes: Optional[int] = None
     is_free: Optional[bool] = None
+    tag: Optional[str] = None
 
 
 class LessonResponse(BaseSchema):
     id: UUID
+    tag: Optional[str] = None
     section_id: UUID
     title: str
     kind: str
@@ -52,6 +67,16 @@ class LessonResponse(BaseSchema):
     is_free: bool
     like_count: int
     share_count: int
+    video_content: List[VideoLessonResponse] = []
+    text_content: List[TextLessonResponse] = []
+    quiz_content: List[QuizLessonResponse] = []
+    interactive_content: List[InteractiveLessonResponse] = []
+    problem_content: List[ProblemLessonResponse] = []
+    heading_content: List[HeadingLessonResponse] = []
+    image_content: List[ImageLessonResponse] = []
+    code_content: List[CodeLessonResponse] = []
+    hint_content: List[HintLessonResponse] = []
+    callout_content: List[CalloutLessonResponse] = []
     created_at: datetime
     updated_at: datetime
 

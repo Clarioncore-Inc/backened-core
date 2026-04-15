@@ -1,9 +1,59 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session, joinedload
-from app.lessons.models import Lesson, LessonLike, LessonBookmark, LessonComment, Section
+from sqlalchemy.orm import Session, joinedload, selectinload
+from app.lessons.models import (
+    CalloutLesson,
+    CodeLesson,
+    HeadingLesson,
+    HintLesson,
+    ImageLesson,
+    InteractiveLesson,
+    InteractiveStep,
+    Lesson,
+    LessonBookmark,
+    LessonComment,
+    LessonLike,
+    ProblemLesson,
+    QuizLesson,
+    QuizQuestion,
+    Section,
+    TextLesson,
+    TextLessonAttachment,
+    VideoLesson,
+)
 
 
 class LessonService:
+    def get_lesson_detail(self, db: Session, lesson_id) -> Optional[Lesson]:
+        return (
+            db.query(Lesson)
+            .options(
+                selectinload(Lesson.video_content).selectinload(VideoLesson.video),
+                selectinload(Lesson.video_content).selectinload(VideoLesson.thumbnail),
+                selectinload(Lesson.video_content).selectinload(VideoLesson.subtitles),
+                selectinload(Lesson.text_content)
+                .selectinload(TextLesson.attachments)
+                .selectinload(TextLessonAttachment.attachment),
+                selectinload(Lesson.quiz_content)
+                .selectinload(QuizLesson.questions)
+                .selectinload(QuizQuestion.options),
+                selectinload(Lesson.quiz_content)
+                .selectinload(QuizLesson.questions)
+                .selectinload(QuizQuestion.image),
+                selectinload(Lesson.interactive_content)
+                .selectinload(InteractiveLesson.steps)
+                .selectinload(InteractiveStep.image),
+                selectinload(Lesson.problem_content).selectinload(ProblemLesson.image),
+                selectinload(Lesson.problem_content).selectinload(ProblemLesson.test_cases),
+                selectinload(Lesson.heading_content),
+                selectinload(Lesson.image_content).selectinload(ImageLesson.image),
+                selectinload(Lesson.code_content),
+                selectinload(Lesson.hint_content),
+                selectinload(Lesson.callout_content),
+            )
+            .filter(Lesson.id == lesson_id)
+            .first()
+        )
+
     def get_section_with_lessons(self, db: Session, section_id) -> Optional[Section]:
         return (
             db.query(Section)
