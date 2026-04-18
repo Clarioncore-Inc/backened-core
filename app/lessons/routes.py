@@ -246,16 +246,23 @@ class VideoLessonsView:
     @video_lessons_router.post("/", response_model=VideoLessonResponse, status_code=201)
     def create_video_lesson(self, payload: VideoLessonCreate):
         data = payload.model_dump()
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         return service_locator.general_service.create(db=self.db, data=data, model=VideoLesson)
 
-    @video_lessons_router.get("/{id}", response_model=VideoLessonResponse)
-    def get_video_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=VideoLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Video lesson not found")
-        return lesson
+    # @video_lessons_router.get("/{id}", response_model=VideoLessonResponse)
+    # def get_video_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=VideoLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Video lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="video_lesson")
+    #     return lesson
 
     @video_lessons_router.put("/{id}", response_model=VideoLessonResponse)
     def update_video_lesson(self, id: UUID, payload: VideoLessonUpdate):
@@ -298,6 +305,11 @@ class TextLessonsView:
     @text_lessons_router.post("/", response_model=TextLessonResponse, status_code=201)
     def create_text_lesson(self, payload: TextLessonCreate):
         data = payload.model_dump(exclude={"attachment_ids"})
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         lesson = service_locator.general_service.create(
             db=self.db, data=data, model=TextLesson)
         if payload.attachment_ids:
@@ -307,14 +319,16 @@ class TextLessonsView:
             self.db.refresh(lesson)
         return lesson
 
-    @text_lessons_router.get("/{id}", response_model=TextLessonResponse)
-    def get_text_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=TextLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Text lesson not found")
-        return lesson
+    # @text_lessons_router.get("/{id}", response_model=TextLessonResponse)
+    # def get_text_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=TextLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Text lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="text_lesson")
+    #     return lesson
 
     @text_lessons_router.put("/{id}", response_model=TextLessonResponse)
     def update_text_lesson(self, id: UUID, payload: TextLessonUpdate):
@@ -365,6 +379,11 @@ class QuizLessonsView:
     @quiz_lessons_router.post("/", response_model=QuizLessonResponse, status_code=201)
     def create_quiz_lesson(self, payload: QuizLessonCreate):
         data = payload.model_dump(exclude={"questions"})
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         lesson = QuizLesson(**data)
         self.db.add(lesson)
         self.db.flush()
@@ -373,14 +392,16 @@ class QuizLessonsView:
         self.db.refresh(lesson)
         return lesson
 
-    @quiz_lessons_router.get("/{id}", response_model=QuizLessonResponse)
-    def get_quiz_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=QuizLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Quiz lesson not found")
-        return lesson
+    # @quiz_lessons_router.get("/{id}", response_model=QuizLessonResponse)
+    # def get_quiz_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=QuizLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Quiz lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="quiz_lesson")
+    #     return lesson
 
     @quiz_lessons_router.put("/{id}", response_model=QuizLessonResponse)
     def update_quiz_lesson(self, id: UUID, payload: QuizLessonUpdate):
@@ -425,6 +446,11 @@ class InteractiveLessonsView:
     @interactive_lessons_router.post("/", response_model=InteractiveLessonResponse, status_code=201)
     def create_interactive_lesson(self, payload: InteractiveLessonCreate):
         data = payload.model_dump(exclude={"steps"})
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         lesson = InteractiveLesson(**data)
         self.db.add(lesson)
         self.db.flush()
@@ -433,14 +459,16 @@ class InteractiveLessonsView:
         self.db.refresh(lesson)
         return lesson
 
-    @interactive_lessons_router.get("/{id}", response_model=InteractiveLessonResponse)
-    def get_interactive_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=InteractiveLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Interactive lesson not found")
-        return lesson
+    # @interactive_lessons_router.get("/{id}", response_model=InteractiveLessonResponse)
+    # def get_interactive_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=InteractiveLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Interactive lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="interactive_lesson")
+    #     return lesson
 
     @interactive_lessons_router.put("/{id}", response_model=InteractiveLessonResponse)
     def update_interactive_lesson(self, id: UUID, payload: InteractiveLessonUpdate):
@@ -486,6 +514,11 @@ class ProblemLessonsView:
     @problem_lessons_router.post("/", response_model=ProblemLessonResponse, status_code=201)
     def create_problem_lesson(self, payload: ProblemLessonCreate):
         data = payload.model_dump(exclude={"test_cases"})
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         lesson = ProblemLesson(**data)
         self.db.add(lesson)
         self.db.flush()
@@ -494,14 +527,16 @@ class ProblemLessonsView:
         self.db.refresh(lesson)
         return lesson
 
-    @problem_lessons_router.get("/{id}", response_model=ProblemLessonResponse)
-    def get_problem_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=ProblemLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Problem lesson not found")
-        return lesson
+    # @problem_lessons_router.get("/{id}", response_model=ProblemLessonResponse)
+    # def get_problem_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=ProblemLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Problem lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="problem_lesson")
+    #     return lesson
 
     @problem_lessons_router.put("/{id}", response_model=ProblemLessonResponse)
     def update_problem_lesson(self, id: UUID, payload: ProblemLessonUpdate):
@@ -541,18 +576,26 @@ class HeadingLessonsView:
 
     @heading_lessons_router.post("/", response_model=HeadingLessonResponse, status_code=201)
     def create_heading_lesson(self, payload: HeadingLessonCreate):
+        data = payload.model_dump()
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         return service_locator.general_service.create(
-            db=self.db, data=payload.model_dump(), model=HeadingLesson
+            db=self.db, data=data, model=HeadingLesson
         )
 
-    @heading_lessons_router.get("/{id}", response_model=HeadingLessonResponse)
-    def get_heading_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=HeadingLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Heading lesson not found")
-        return lesson
+    # @heading_lessons_router.get("/{id}", response_model=HeadingLessonResponse)
+    # def get_heading_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=HeadingLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Heading lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="heading_lesson")
+    #     return lesson
 
     @heading_lessons_router.put("/{id}", response_model=HeadingLessonResponse)
     def update_heading_lesson(self, id: UUID, payload: HeadingLessonUpdate):
@@ -584,18 +627,26 @@ class ImageLessonsView:
 
     @image_lessons_router.post("/", response_model=ImageLessonResponse, status_code=201)
     def create_image_lesson(self, payload: ImageLessonCreate):
+        data = payload.model_dump()
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         return service_locator.general_service.create(
-            db=self.db, data=payload.model_dump(), model=ImageLesson
+            db=self.db, data=data, model=ImageLesson
         )
 
-    @image_lessons_router.get("/{id}", response_model=ImageLessonResponse)
-    def get_image_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=ImageLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Image lesson not found")
-        return lesson
+    # @image_lessons_router.get("/{id}", response_model=ImageLessonResponse)
+    # def get_image_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=ImageLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Image lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="image_lesson")
+    #     return lesson
 
     @image_lessons_router.put("/{id}", response_model=ImageLessonResponse)
     def update_image_lesson(self, id: UUID, payload: ImageLessonUpdate):
@@ -627,18 +678,26 @@ class CodeLessonsView:
 
     @code_lessons_router.post("/", response_model=CodeLessonResponse, status_code=201)
     def create_code_lesson(self, payload: CodeLessonCreate):
+        data = payload.model_dump()
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         return service_locator.general_service.create(
-            db=self.db, data=payload.model_dump(), model=CodeLesson
+            db=self.db, data=data, model=CodeLesson
         )
 
-    @code_lessons_router.get("/{id}", response_model=CodeLessonResponse)
-    def get_code_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=CodeLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Code lesson not found")
-        return lesson
+    # @code_lessons_router.get("/{id}", response_model=CodeLessonResponse)
+    # def get_code_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=CodeLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Code lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="code_lesson")
+    #     return lesson
 
     @code_lessons_router.put("/{id}", response_model=CodeLessonResponse)
     def update_code_lesson(self, id: UUID, payload: CodeLessonUpdate):
@@ -670,18 +729,26 @@ class HintLessonsView:
 
     @hint_lessons_router.post("/", response_model=HintLessonResponse, status_code=201)
     def create_hint_lesson(self, payload: HintLessonCreate):
+        data = payload.model_dump()
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         return service_locator.general_service.create(
-            db=self.db, data=payload.model_dump(), model=HintLesson
+            db=self.db, data=data, model=HintLesson
         )
 
-    @hint_lessons_router.get("/{id}", response_model=HintLessonResponse)
-    def get_hint_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=HintLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Hint lesson not found")
-        return lesson
+    # @hint_lessons_router.get("/{id}", response_model=HintLessonResponse)
+    # def get_hint_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=HintLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Hint lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="hint_lesson")
+    #     return lesson
 
     @hint_lessons_router.put("/{id}", response_model=HintLessonResponse)
     def update_hint_lesson(self, id: UUID, payload: HintLessonUpdate):
@@ -713,18 +780,26 @@ class CalloutLessonsView:
 
     @callout_lessons_router.post("/", response_model=CalloutLessonResponse, status_code=201)
     def create_callout_lesson(self, payload: CalloutLessonCreate):
+        data = payload.model_dump()
+        if data.get("parent_id") is None:
+            data["parent_type"] = "lesson"
+        else:
+            data["parent_type"] = service_locator.lesson_service.determine_parent_type(
+                self.db, data["parent_id"])
         return service_locator.general_service.create(
-            db=self.db, data=payload.model_dump(), model=CalloutLesson
+            db=self.db, data=data, model=CalloutLesson
         )
 
-    @callout_lessons_router.get("/{id}", response_model=CalloutLessonResponse)
-    def get_callout_lesson(self, id: UUID):
-        lesson = service_locator.general_service.get(
-            db=self.db, key=id, model=CalloutLesson)
-        if not lesson:
-            raise HTTPException(
-                status_code=404, detail="Callout lesson not found")
-        return lesson
+    # @callout_lessons_router.get("/{id}", response_model=CalloutLessonResponse)
+    # def get_callout_lesson(self, id: UUID):
+    #     lesson = service_locator.general_service.get(
+    #         db=self.db, key=id, model=CalloutLesson)
+    #     if not lesson:
+    #         raise HTTPException(
+    #             status_code=404, detail="Callout lesson not found")
+    #     lesson.children = service_locator.lesson_service.get_children(
+    #         self.db, parent_id=lesson.id, parent_type="callout_lesson")
+    #     return lesson
 
     @callout_lessons_router.put("/{id}", response_model=CalloutLessonResponse)
     def update_callout_lesson(self, id: UUID, payload: CalloutLessonUpdate):

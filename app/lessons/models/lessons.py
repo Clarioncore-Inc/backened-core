@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID as PG_UUID
+from enum import Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey, Table
 from app.core.models import BaseModel
@@ -42,7 +43,19 @@ class Section(BaseModel):
         "Attachment", secondary=section_attachments, back_populates="sections")
 
 
-class Lesson(BaseModel):
+class LessonSettings(BaseModel):
+    __abstract__ = True
+
+    class DifficultyEnum(str, Enum):
+        BEGINNER = "beginner"
+        INTERMEDIATE = "intermediate"
+        ADVANCED = "advanced"
+    duration_minutes = Column(Integer, default=0)
+    xp_reward = Column(Integer, default=0)
+    difficulty = Column(ENUM(DifficultyEnum), nullable=True)
+
+
+class Lesson(LessonSettings):
     __tablename__ = "lessons"
 
     section_id = Column(PG_UUID(as_uuid=True), ForeignKey(
@@ -51,7 +64,6 @@ class Lesson(BaseModel):
     kind = Column(LessonKindEnum, nullable=False, default="text")
     content = Column(JSONB, nullable=True)
     position = Column(Integer, default=0)
-    duration_minutes = Column(Integer, default=0)
     is_free = Column(Boolean, default=False)
     like_count = Column(Integer, default=0)
     share_count = Column(Integer, default=0)

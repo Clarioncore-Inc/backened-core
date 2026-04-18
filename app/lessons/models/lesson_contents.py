@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, ENUM, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey
 from app.core.models import BaseModel
+from enum import StrEnum
 
 
 LessonKindEnum = ENUM(
@@ -18,10 +19,38 @@ CalloutTypeEnum = ENUM(
 )
 
 
+class LessonContentMixin(BaseModel):
+    __abstract__ = True
+
+    class ParentType(StrEnum):
+        LESSON = "lesson"
+        VIDEO_LESSON = "video_lesson"
+        TEXT_LESSON = "text_lesson"
+        QUIZ_LESSON = "quiz_lesson"
+        INTERACTIVE_LESSON = "interactive_lesson"
+        PROBLEM_LESSON = "problem_lesson"
+        HEADING_LESSON = "heading_lesson"
+        IMAGE_LESSON = "image_lesson"
+        CODE_LESSON = "code_lesson"
+        HINT_LESSON = "hint_lesson"
+        CALLOUT_LESSON = "callout_lesson"
+
+    ParentTypeEnum = ENUM(
+        *[e.value for e in ParentType],
+        name="parent_type_enum", create_type=True
+    )
+
+    parent_id = Column(PG_UUID(as_uuid=True), nullable=True)
+    parent_type = Column(ParentTypeEnum, nullable=True)
+    position = Column(Integer, default=0)
+
+
 # ---------------------------------------------------------------------------
 # Video Lesson
 # ---------------------------------------------------------------------------
-class VideoLesson(BaseModel):
+
+
+class VideoLesson(LessonContentMixin):
     __tablename__ = "video_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
@@ -47,7 +76,7 @@ class VideoLesson(BaseModel):
 # ---------------------------------------------------------------------------
 # Text Lesson
 # ---------------------------------------------------------------------------
-class TextLesson(BaseModel):
+class TextLesson(LessonContentMixin):
     __tablename__ = "text_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
@@ -82,7 +111,7 @@ QuestionTypeEnum = ENUM(
 )
 
 
-class QuizLesson(BaseModel):
+class QuizLesson(LessonContentMixin):
     __tablename__ = "quiz_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
@@ -140,11 +169,12 @@ InteractiveStepTypeEnum = ENUM(
 )
 
 
-class InteractiveLesson(BaseModel):
+class InteractiveLesson(LessonContentMixin):
     __tablename__ = "interactive_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
+
     passing_score = Column(Integer, default=70)
 
     lesson = relationship("Lesson", back_populates="interactive_content")
@@ -174,21 +204,15 @@ class InteractiveStep(BaseModel):
 # ---------------------------------------------------------------------------
 # Problem Lesson  (coding / math problem with test cases)
 # ---------------------------------------------------------------------------
-DifficultyEnum = ENUM(
-    "easy", "medium", "hard",
-    name="difficulty_enum", create_type=True
-)
 
 
-class ProblemLesson(BaseModel):
+class ProblemLesson(LessonContentMixin):
     __tablename__ = "problem_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
 
-    # problem description (markdown)
     statement = Column(Text, nullable=False)
-    difficulty = Column(DifficultyEnum, default="medium")
     # boilerplate given to student
     starter_code = Column(Text, nullable=True)
     # hidden reference solution
@@ -222,11 +246,12 @@ class ProblemTestCase(BaseModel):
 # ---------------------------------------------------------------------------
 # Heading Lesson
 # ---------------------------------------------------------------------------
-class HeadingLesson(BaseModel):
+class HeadingLesson(LessonContentMixin):
     __tablename__ = "heading_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
+
     text = Column(String, nullable=False)
     level = Column(Integer, default=1)
 
@@ -236,11 +261,12 @@ class HeadingLesson(BaseModel):
 # ---------------------------------------------------------------------------
 # Image Lesson
 # ---------------------------------------------------------------------------
-class ImageLesson(BaseModel):
+class ImageLesson(LessonContentMixin):
     __tablename__ = "image_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
+
     image_id = Column(ForeignKey("attachments.id"), nullable=False)
     caption = Column(String, nullable=True)
     alt_text = Column(String, nullable=True)
@@ -252,11 +278,12 @@ class ImageLesson(BaseModel):
 # ---------------------------------------------------------------------------
 # Code Lesson
 # ---------------------------------------------------------------------------
-class CodeLesson(BaseModel):
+class CodeLesson(LessonContentMixin):
     __tablename__ = "code_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
+
     code = Column(Text, nullable=False)
     language = Column(String, nullable=True)
     filename = Column(String, nullable=True)
@@ -268,11 +295,12 @@ class CodeLesson(BaseModel):
 # ---------------------------------------------------------------------------
 # Hint Lesson
 # ---------------------------------------------------------------------------
-class HintLesson(BaseModel):
+class HintLesson(LessonContentMixin):
     __tablename__ = "hint_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
+
     text = Column(Text, nullable=False)
     is_collapsible = Column(Boolean, default=True)
 
@@ -282,11 +310,12 @@ class HintLesson(BaseModel):
 # ---------------------------------------------------------------------------
 # Callout Lesson
 # ---------------------------------------------------------------------------
-class CalloutLesson(BaseModel):
+class CalloutLesson(LessonContentMixin):
     __tablename__ = "callout_lessons"
 
     lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "lessons.id"), nullable=False)
+
     text = Column(Text, nullable=False)
     callout_type = Column(CalloutTypeEnum, default="info")
     title = Column(String, nullable=True)

@@ -1,45 +1,77 @@
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 from datetime import datetime
-from pydantic import model_validator
+from pydantic import field_validator, field_serializer
 from app.core.schema import BaseSchema
 from app.attachment.schemas import AttachmentResponse
+from app.lessons.models.lesson_contents import LessonContentMixin
 
 
-class LessonContentSchema(BaseSchema):
-    @model_validator(mode="before")
+class LessonContentSchemaMixin(BaseSchema):
+    parent_id: Optional[UUID] = None
+    parent_type: Optional[LessonContentMixin.ParentType] = None
+    position: int = 0
+
+    @field_validator('parent_id', mode='before')
     @classmethod
-    def normalize_empty_uuid_values(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            return data
+    def empty_string_to_none_uuid(cls, v):
+        """Convert empty strings to None for optional UUID fields"""
+        if v == "" or v == "null":
+            return None
+        return v
 
-        uuid_field_names = {"video_id", "thumbnail_id", "subtitles_id", "image_id"}
-        uuid_list_field_names = {"attachment_ids"}
+    @field_validator('parent_type', mode='before')
+    @classmethod
+    def empty_string_to_none_enum(cls, v):
+        """Convert empty strings to None for optional enum fields"""
+        if v == "" or v == "null":
+            return None
+        return v
 
-        normalized = dict(data)
-        for field_name in uuid_field_names:
-            value = normalized.get(field_name)
-            if isinstance(value, str) and not value.strip():
-                normalized[field_name] = None
 
-        for field_name in uuid_list_field_names:
-            value = normalized.get(field_name)
-            if isinstance(value, str) and not value.strip():
-                normalized[field_name] = None
-            elif isinstance(value, list):
-                cleaned_values = [
-                    item for item in value
-                    if not (isinstance(item, str) and not item.strip())
-                ]
-                normalized[field_name] = cleaned_values
+class ChildContentResponse(BaseSchema):
+    video_content: List['VideoLessonResponse'] = []
+    text_content: List['TextLessonResponse'] = []
+    quiz_content: List['QuizLessonResponse'] = []
+    interactive_content: List['InteractiveLessonResponse'] = []
+    problem_content: List['ProblemLessonResponse'] = []
+    heading_content: List['HeadingLessonResponse'] = []
+    image_content: List['ImageLessonResponse'] = []
+    code_content: List['CodeLessonResponse'] = []
+    hint_content: List['HintLessonResponse'] = []
+    callout_content: List['CalloutLessonResponse'] = []
 
-        return normalized
+    def is_empty(self) -> bool:
+        """Check if all content lists are empty"""
+        return all([
+            not self.video_content,
+            not self.text_content,
+            not self.quiz_content,
+            not self.interactive_content,
+            not self.problem_content,
+            not self.heading_content,
+            not self.image_content,
+            not self.code_content,
+            not self.hint_content,
+            not self.callout_content,
+        ])
+
+
+class ContentWithChildrenMixin(LessonContentSchemaMixin):
+    children: Optional[ChildContentResponse] = None
+
+    @field_serializer('children')
+    def serialize_children(self, value: Optional[ChildContentResponse]) -> Optional[ChildContentResponse]:
+        """Return None for children if it has no content"""
+        if value is None or value.is_empty():
+            return None
+        return value
 
 
 # ---------------------------------------------------------------------------
 # Video
 # ---------------------------------------------------------------------------
-class VideoLessonCreate(LessonContentSchema):
+class VideoLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     video_id: Optional[UUID] = None
     external_url: Optional[str] = None
@@ -50,7 +82,7 @@ class VideoLessonCreate(LessonContentSchema):
     allow_download: bool = False
 
 
-class VideoLessonUpdate(LessonContentSchema):
+class VideoLessonUpdate(LessonContentSchemaMixin):
     video_id: Optional[UUID] = None
     external_url: Optional[str] = None
     duration_seconds: Optional[int] = None
@@ -60,7 +92,7 @@ class VideoLessonUpdate(LessonContentSchema):
     allow_download: Optional[bool] = None
 
 
-class VideoLessonResponse(LessonContentSchema):
+class VideoLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     video_id: Optional[UUID] = None
@@ -80,25 +112,25 @@ class VideoLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Text
 # ---------------------------------------------------------------------------
-class TextLessonAttachmentResponse(LessonContentSchema):
+class TextLessonAttachmentResponse(LessonContentSchemaMixin):
     id: UUID
     attachment: AttachmentResponse
 
 
-class TextLessonCreate(LessonContentSchema):
+class TextLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     body: str
     estimated_read_minutes: int = 0
     attachment_ids: Optional[List[UUID]] = None
 
 
-class TextLessonUpdate(LessonContentSchema):
+class TextLessonUpdate(LessonContentSchemaMixin):
     body: Optional[str] = None
     estimated_read_minutes: Optional[int] = None
     attachment_ids: Optional[List[UUID]] = None
 
 
-class TextLessonResponse(LessonContentSchema):
+class TextLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     body: str
@@ -111,26 +143,26 @@ class TextLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Quiz
 # ---------------------------------------------------------------------------
-class QuizQuestionOptionCreate(LessonContentSchema):
+class QuizQuestionOptionCreate(LessonContentSchemaMixin):
     text: str
     is_correct: bool = False
     position: int = 0
 
 
-class QuizQuestionOptionUpdate(LessonContentSchema):
+class QuizQuestionOptionUpdate(LessonContentSchemaMixin):
     text: Optional[str] = None
     is_correct: Optional[bool] = None
     position: Optional[int] = None
 
 
-class QuizQuestionOptionResponse(LessonContentSchema):
+class QuizQuestionOptionResponse(LessonContentSchemaMixin):
     id: UUID
     text: str
     is_correct: bool
     position: int
 
 
-class QuizQuestionCreate(LessonContentSchema):
+class QuizQuestionCreate(LessonContentSchemaMixin):
     question_type: str = "single_choice"
     text: str
     explanation: Optional[str] = None
@@ -140,7 +172,7 @@ class QuizQuestionCreate(LessonContentSchema):
     options: List[QuizQuestionOptionCreate] = []
 
 
-class QuizQuestionUpdate(LessonContentSchema):
+class QuizQuestionUpdate(LessonContentSchemaMixin):
     question_type: Optional[str] = None
     text: Optional[str] = None
     explanation: Optional[str] = None
@@ -150,7 +182,7 @@ class QuizQuestionUpdate(LessonContentSchema):
     options: Optional[List[QuizQuestionOptionCreate]] = None
 
 
-class QuizQuestionResponse(LessonContentSchema):
+class QuizQuestionResponse(LessonContentSchemaMixin):
     id: UUID
     quiz_id: UUID
     question_type: str
@@ -163,7 +195,7 @@ class QuizQuestionResponse(LessonContentSchema):
     options: List[QuizQuestionOptionResponse] = []
 
 
-class QuizLessonCreate(LessonContentSchema):
+class QuizLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     passing_score: int = 70
     max_attempts: Optional[int] = None
@@ -173,7 +205,7 @@ class QuizLessonCreate(LessonContentSchema):
     questions: List[QuizQuestionCreate] = []
 
 
-class QuizLessonUpdate(LessonContentSchema):
+class QuizLessonUpdate(LessonContentSchemaMixin):
     passing_score: Optional[int] = None
     max_attempts: Optional[int] = None
     time_limit_minutes: Optional[int] = None
@@ -182,7 +214,7 @@ class QuizLessonUpdate(LessonContentSchema):
     questions: Optional[List[QuizQuestionCreate]] = None
 
 
-class QuizLessonResponse(LessonContentSchema):
+class QuizLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     passing_score: int
@@ -198,7 +230,7 @@ class QuizLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Interactive
 # ---------------------------------------------------------------------------
-class InteractiveStepCreate(LessonContentSchema):
+class InteractiveStepCreate(LessonContentSchemaMixin):
     step_type: str
     title: Optional[str] = None
     instructions: Optional[str] = None
@@ -208,7 +240,7 @@ class InteractiveStepCreate(LessonContentSchema):
     points: int = 1
 
 
-class InteractiveStepUpdate(LessonContentSchema):
+class InteractiveStepUpdate(LessonContentSchemaMixin):
     step_type: Optional[str] = None
     title: Optional[str] = None
     instructions: Optional[str] = None
@@ -218,7 +250,7 @@ class InteractiveStepUpdate(LessonContentSchema):
     points: Optional[int] = None
 
 
-class InteractiveStepResponse(LessonContentSchema):
+class InteractiveStepResponse(LessonContentSchemaMixin):
     id: UUID
     interactive_lesson_id: UUID
     step_type: str
@@ -231,18 +263,18 @@ class InteractiveStepResponse(LessonContentSchema):
     image: Optional[AttachmentResponse] = None
 
 
-class InteractiveLessonCreate(LessonContentSchema):
+class InteractiveLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     passing_score: int = 70
     steps: List[InteractiveStepCreate] = []
 
 
-class InteractiveLessonUpdate(LessonContentSchema):
+class InteractiveLessonUpdate(LessonContentSchemaMixin):
     passing_score: Optional[int] = None
     steps: Optional[List[InteractiveStepCreate]] = None
 
 
-class InteractiveLessonResponse(LessonContentSchema):
+class InteractiveLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     passing_score: int
@@ -254,21 +286,21 @@ class InteractiveLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Problem
 # ---------------------------------------------------------------------------
-class ProblemTestCaseCreate(LessonContentSchema):
+class ProblemTestCaseCreate(LessonContentSchemaMixin):
     input: str
     expected_output: str
     is_sample: bool = False
     position: int = 0
 
 
-class ProblemTestCaseUpdate(LessonContentSchema):
+class ProblemTestCaseUpdate(LessonContentSchemaMixin):
     input: Optional[str] = None
     expected_output: Optional[str] = None
     is_sample: Optional[bool] = None
     position: Optional[int] = None
 
 
-class ProblemTestCaseResponse(LessonContentSchema):
+class ProblemTestCaseResponse(LessonContentSchemaMixin):
     id: UUID
     input: str
     expected_output: str
@@ -276,7 +308,7 @@ class ProblemTestCaseResponse(LessonContentSchema):
     position: int
 
 
-class ProblemLessonCreate(LessonContentSchema):
+class ProblemLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     statement: str
     difficulty: str = "medium"
@@ -290,7 +322,7 @@ class ProblemLessonCreate(LessonContentSchema):
     test_cases: List[ProblemTestCaseCreate] = []
 
 
-class ProblemLessonUpdate(LessonContentSchema):
+class ProblemLessonUpdate(LessonContentSchemaMixin):
     statement: Optional[str] = None
     difficulty: Optional[str] = None
     starter_code: Optional[str] = None
@@ -303,7 +335,7 @@ class ProblemLessonUpdate(LessonContentSchema):
     test_cases: Optional[List[ProblemTestCaseCreate]] = None
 
 
-class ProblemLessonResponse(LessonContentSchema):
+class ProblemLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     statement: str
@@ -324,18 +356,18 @@ class ProblemLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Heading
 # ---------------------------------------------------------------------------
-class HeadingLessonCreate(LessonContentSchema):
+class HeadingLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     text: str
     level: int = 1
 
 
-class HeadingLessonUpdate(LessonContentSchema):
+class HeadingLessonUpdate(LessonContentSchemaMixin):
     text: Optional[str] = None
     level: Optional[int] = None
 
 
-class HeadingLessonResponse(LessonContentSchema):
+class HeadingLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     text: str
@@ -347,20 +379,20 @@ class HeadingLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Image
 # ---------------------------------------------------------------------------
-class ImageLessonCreate(LessonContentSchema):
+class ImageLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     image_id: UUID
     caption: Optional[str] = None
     alt_text: Optional[str] = None
 
 
-class ImageLessonUpdate(LessonContentSchema):
+class ImageLessonUpdate(LessonContentSchemaMixin):
     image_id: Optional[UUID] = None
     caption: Optional[str] = None
     alt_text: Optional[str] = None
 
 
-class ImageLessonResponse(LessonContentSchema):
+class ImageLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     image_id: UUID
@@ -374,7 +406,7 @@ class ImageLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Code
 # ---------------------------------------------------------------------------
-class CodeLessonCreate(LessonContentSchema):
+class CodeLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     code: str
     language: Optional[str] = None
@@ -382,14 +414,14 @@ class CodeLessonCreate(LessonContentSchema):
     show_line_numbers: bool = True
 
 
-class CodeLessonUpdate(LessonContentSchema):
+class CodeLessonUpdate(LessonContentSchemaMixin):
     code: Optional[str] = None
     language: Optional[str] = None
     filename: Optional[str] = None
     show_line_numbers: Optional[bool] = None
 
 
-class CodeLessonResponse(LessonContentSchema):
+class CodeLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     code: str
@@ -403,18 +435,18 @@ class CodeLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Hint
 # ---------------------------------------------------------------------------
-class HintLessonCreate(LessonContentSchema):
+class HintLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     text: str
     is_collapsible: bool = True
 
 
-class HintLessonUpdate(LessonContentSchema):
+class HintLessonUpdate(LessonContentSchemaMixin):
     text: Optional[str] = None
     is_collapsible: Optional[bool] = None
 
 
-class HintLessonResponse(LessonContentSchema):
+class HintLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     text: str
@@ -426,20 +458,20 @@ class HintLessonResponse(LessonContentSchema):
 # ---------------------------------------------------------------------------
 # Callout
 # ---------------------------------------------------------------------------
-class CalloutLessonCreate(LessonContentSchema):
+class CalloutLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     text: str
     callout_type: str = "info"
     title: Optional[str] = None
 
 
-class CalloutLessonUpdate(LessonContentSchema):
+class CalloutLessonUpdate(LessonContentSchemaMixin):
     text: Optional[str] = None
     callout_type: Optional[str] = None
     title: Optional[str] = None
 
 
-class CalloutLessonResponse(LessonContentSchema):
+class CalloutLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     text: str
@@ -447,3 +479,16 @@ class CalloutLessonResponse(LessonContentSchema):
     title: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+VideoLessonResponse.model_rebuild()
+TextLessonResponse.model_rebuild()
+QuizLessonResponse.model_rebuild()
+InteractiveLessonResponse.model_rebuild()
+ProblemLessonResponse.model_rebuild()
+HeadingLessonResponse.model_rebuild()
+ImageLessonResponse.model_rebuild()
+CodeLessonResponse.model_rebuild()
+HintLessonResponse.model_rebuild()
+CalloutLessonResponse.model_rebuild()
+ChildContentResponse.model_rebuild()

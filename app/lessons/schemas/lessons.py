@@ -15,6 +15,7 @@ from app.lessons.schemas.lesson_contents import (
     TextLessonResponse,
     VideoLessonResponse,
 )
+from app.lessons.models.lessons import LessonSettings
 
 
 class SectionCreate(BaseSchema):
@@ -43,6 +44,9 @@ class LessonCreate(BaseSchema):
     position: int = 0
     duration_minutes: int = 0
     is_free: bool = False
+    duration_minutes: int = 0
+    xp_reward: int = 0
+    difficulty: Optional[LessonSettings.DifficultyEnum] = None
 
 
 class LessonUpdate(BaseSchema):
@@ -53,6 +57,9 @@ class LessonUpdate(BaseSchema):
     duration_minutes: Optional[int] = None
     is_free: Optional[bool] = None
     tag: Optional[str] = None
+    duration_minutes: int = 0
+    xp_reward: int = 0
+    difficulty: Optional[LessonSettings.DifficultyEnum] = None
 
 
 class LessonResponse(BaseSchema):
@@ -79,6 +86,9 @@ class LessonResponse(BaseSchema):
     callout_content: List[CalloutLessonResponse] = []
     created_at: datetime
     updated_at: datetime
+    duration_minutes: int = 0
+    xp_reward: int = 0
+    difficulty: Optional[LessonSettings.DifficultyEnum] = None
 
 
 class SectionResponse(BaseSchema):
