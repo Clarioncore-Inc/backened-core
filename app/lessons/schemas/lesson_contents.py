@@ -4,7 +4,12 @@ from datetime import datetime
 from pydantic import field_validator, field_serializer
 from app.core.schema import BaseSchema
 from app.attachment.schemas import AttachmentResponse
-from app.lessons.models.lesson_contents import LessonContentMixin
+from app.lessons.models.lesson_contents import (
+    CalloutType,
+    InteractiveStepType,
+    LessonContentMixin,
+    QuestionType,
+)
 
 
 class LessonContentSchemaMixin(BaseSchema):
@@ -58,6 +63,7 @@ class ChildContentResponse(BaseSchema):
 
 
 class ContentWithChildrenMixin(LessonContentSchemaMixin):
+
     children: Optional[ChildContentResponse] = None
 
     @field_serializer('children')
@@ -66,6 +72,16 @@ class ContentWithChildrenMixin(LessonContentSchemaMixin):
         if value is None or value.is_empty():
             return None
         return value
+
+
+class InlineContentSchemaMixin(BaseSchema):
+    position: int = 0
+
+
+class LessonContentUpsertMixin(InlineContentSchemaMixin):
+
+    id: Optional[UUID] = None
+    # children: Optional['ChildContentUpsert'] = None
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +125,16 @@ class VideoLessonResponse(ContentWithChildrenMixin):
     updated_at: datetime
 
 
+class VideoLessonUpsert(LessonContentUpsertMixin):
+    video_id: Optional[UUID] = None
+    external_url: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    thumbnail_id: Optional[UUID] = None
+    transcript: Optional[str] = None
+    subtitles_id: Optional[UUID] = None
+    allow_download: Optional[bool] = None
+
+
 # ---------------------------------------------------------------------------
 # Text
 # ---------------------------------------------------------------------------
@@ -140,6 +166,12 @@ class TextLessonResponse(ContentWithChildrenMixin):
     updated_at: datetime
 
 
+class TextLessonUpsert(LessonContentUpsertMixin):
+    body: Optional[str] = None
+    estimated_read_minutes: Optional[int] = None
+    attachment_ids: Optional[List[UUID]] = None
+
+
 # ---------------------------------------------------------------------------
 # Quiz
 # ---------------------------------------------------------------------------
@@ -162,8 +194,13 @@ class QuizQuestionOptionResponse(LessonContentSchemaMixin):
     position: int
 
 
+class QuizQuestionOptionInlineCreate(InlineContentSchemaMixin):
+    text: str
+    is_correct: bool = False
+
+
 class QuizQuestionCreate(LessonContentSchemaMixin):
-    question_type: str = "single_choice"
+    question_type: QuestionType = QuestionType.SINGLE_CHOICE
     text: str
     explanation: Optional[str] = None
     image_id: Optional[UUID] = None
@@ -173,7 +210,7 @@ class QuizQuestionCreate(LessonContentSchemaMixin):
 
 
 class QuizQuestionUpdate(LessonContentSchemaMixin):
-    question_type: Optional[str] = None
+    question_type: Optional[QuestionType] = None
     text: Optional[str] = None
     explanation: Optional[str] = None
     image_id: Optional[UUID] = None
@@ -185,7 +222,7 @@ class QuizQuestionUpdate(LessonContentSchemaMixin):
 class QuizQuestionResponse(LessonContentSchemaMixin):
     id: UUID
     quiz_id: UUID
-    question_type: str
+    question_type: QuestionType
     text: str
     explanation: Optional[str] = None
     image_id: Optional[UUID] = None
@@ -193,6 +230,15 @@ class QuizQuestionResponse(LessonContentSchemaMixin):
     points: int
     image: Optional[AttachmentResponse] = None
     options: List[QuizQuestionOptionResponse] = []
+
+
+class QuizQuestionInlineCreate(InlineContentSchemaMixin):
+    question_type: QuestionType = QuestionType.SINGLE_CHOICE
+    text: str
+    explanation: Optional[str] = None
+    image_id: Optional[UUID] = None
+    points: int = 1
+    options: List[QuizQuestionOptionInlineCreate] = []
 
 
 class QuizLessonCreate(LessonContentSchemaMixin):
@@ -227,11 +273,20 @@ class QuizLessonResponse(ContentWithChildrenMixin):
     updated_at: datetime
 
 
+class QuizLessonUpsert(LessonContentUpsertMixin):
+    passing_score: Optional[int] = None
+    max_attempts: Optional[int] = None
+    time_limit_minutes: Optional[int] = None
+    shuffle_questions: Optional[bool] = None
+    show_correct_answers: Optional[bool] = None
+    questions: Optional[List[QuizQuestionInlineCreate]] = None
+
+
 # ---------------------------------------------------------------------------
 # Interactive
 # ---------------------------------------------------------------------------
 class InteractiveStepCreate(LessonContentSchemaMixin):
-    step_type: str
+    step_type: InteractiveStepType
     title: Optional[str] = None
     instructions: Optional[str] = None
     position: int = 0
@@ -241,7 +296,7 @@ class InteractiveStepCreate(LessonContentSchemaMixin):
 
 
 class InteractiveStepUpdate(LessonContentSchemaMixin):
-    step_type: Optional[str] = None
+    step_type: Optional[InteractiveStepType] = None
     title: Optional[str] = None
     instructions: Optional[str] = None
     position: Optional[int] = None
@@ -253,7 +308,7 @@ class InteractiveStepUpdate(LessonContentSchemaMixin):
 class InteractiveStepResponse(LessonContentSchemaMixin):
     id: UUID
     interactive_lesson_id: UUID
-    step_type: str
+    step_type: InteractiveStepType
     title: Optional[str] = None
     instructions: Optional[str] = None
     position: int
@@ -261,6 +316,15 @@ class InteractiveStepResponse(LessonContentSchemaMixin):
     image_id: Optional[UUID] = None
     points: int
     image: Optional[AttachmentResponse] = None
+
+
+class InteractiveStepInlineCreate(InlineContentSchemaMixin):
+    step_type: InteractiveStepType
+    title: Optional[str] = None
+    instructions: Optional[str] = None
+    payload: Dict[str, Any] = {}
+    image_id: Optional[UUID] = None
+    points: int = 1
 
 
 class InteractiveLessonCreate(LessonContentSchemaMixin):
@@ -281,6 +345,11 @@ class InteractiveLessonResponse(ContentWithChildrenMixin):
     steps: List[InteractiveStepResponse] = []
     created_at: datetime
     updated_at: datetime
+
+
+class InteractiveLessonUpsert(LessonContentUpsertMixin):
+    passing_score: Optional[int] = None
+    steps: Optional[List[InteractiveStepInlineCreate]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +377,12 @@ class ProblemTestCaseResponse(LessonContentSchemaMixin):
     position: int
 
 
+class ProblemTestCaseInlineCreate(InlineContentSchemaMixin):
+    input: str
+    expected_output: str
+    is_sample: bool = False
+
+
 class ProblemLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     statement: str
@@ -324,7 +399,7 @@ class ProblemLessonCreate(LessonContentSchemaMixin):
 
 class ProblemLessonUpdate(LessonContentSchemaMixin):
     statement: Optional[str] = None
-    difficulty: Optional[str] = None
+    # difficulty: Optional[str] = None
     starter_code: Optional[str] = None
     solution_code: Optional[str] = None
     language: Optional[str] = None
@@ -339,7 +414,7 @@ class ProblemLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     statement: str
-    difficulty: str
+    # difficulty: str
     starter_code: Optional[str] = None
     solution_code: Optional[str] = None
     language: Optional[str] = None
@@ -351,6 +426,19 @@ class ProblemLessonResponse(ContentWithChildrenMixin):
     test_cases: List[ProblemTestCaseResponse] = []
     created_at: datetime
     updated_at: datetime
+
+
+class ProblemLessonUpsert(LessonContentUpsertMixin):
+    statement: Optional[str] = None
+    # difficulty: Optional[str] = None
+    starter_code: Optional[str] = None
+    solution_code: Optional[str] = None
+    language: Optional[str] = None
+    time_limit_seconds: Optional[int] = None
+    memory_limit_mb: Optional[int] = None
+    hints: Optional[List[str]] = None
+    image_id: Optional[UUID] = None
+    test_cases: Optional[List[ProblemTestCaseInlineCreate]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +464,11 @@ class HeadingLessonResponse(ContentWithChildrenMixin):
     updated_at: datetime
 
 
+class HeadingLessonUpsert(LessonContentUpsertMixin):
+    text: Optional[str] = None
+    level: Optional[int] = None
+
+
 # ---------------------------------------------------------------------------
 # Image
 # ---------------------------------------------------------------------------
@@ -387,7 +480,7 @@ class ImageLessonCreate(LessonContentSchemaMixin):
 
 
 class ImageLessonUpdate(LessonContentSchemaMixin):
-    image_id: Optional[UUID] = None
+    image_id:  Optional[UUID] = None
     caption: Optional[str] = None
     alt_text: Optional[str] = None
 
@@ -401,6 +494,12 @@ class ImageLessonResponse(ContentWithChildrenMixin):
     image: Optional[AttachmentResponse] = None
     created_at: datetime
     updated_at: datetime
+
+
+class ImageLessonUpsert(LessonContentUpsertMixin):
+    image_id:  UUID  # Optional[UUID] = None
+    caption: Optional[str] = None
+    alt_text: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -432,6 +531,13 @@ class CodeLessonResponse(ContentWithChildrenMixin):
     updated_at: datetime
 
 
+class CodeLessonUpsert(LessonContentUpsertMixin):
+    code: Optional[str] = None
+    language: Optional[str] = None
+    filename: Optional[str] = None
+    show_line_numbers: Optional[bool] = None
+
+
 # ---------------------------------------------------------------------------
 # Hint
 # ---------------------------------------------------------------------------
@@ -455,19 +561,24 @@ class HintLessonResponse(ContentWithChildrenMixin):
     updated_at: datetime
 
 
+class HintLessonUpsert(LessonContentUpsertMixin):
+    text: Optional[str] = None
+    is_collapsible: Optional[bool] = None
+
+
 # ---------------------------------------------------------------------------
 # Callout
 # ---------------------------------------------------------------------------
 class CalloutLessonCreate(LessonContentSchemaMixin):
     lesson_id: UUID
     text: str
-    callout_type: str = "info"
+    callout_type: CalloutType = CalloutType.INFO
     title: Optional[str] = None
 
 
 class CalloutLessonUpdate(LessonContentSchemaMixin):
     text: Optional[str] = None
-    callout_type: Optional[str] = None
+    callout_type: Optional[CalloutType] = None
     title: Optional[str] = None
 
 
@@ -475,10 +586,29 @@ class CalloutLessonResponse(ContentWithChildrenMixin):
     id: UUID
     lesson_id: UUID
     text: str
-    callout_type: str
+    callout_type: CalloutType
     title: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class CalloutLessonUpsert(LessonContentUpsertMixin):
+    text: Optional[str] = None
+    callout_type: Optional[CalloutType] = None
+    title: Optional[str] = None
+
+
+class ChildContentUpsert(BaseSchema):
+    video_content: Optional[List['VideoLessonUpsert']] = None
+    text_content: Optional[List['TextLessonUpsert']] = None
+    quiz_content: Optional[List['QuizLessonUpsert']] = None
+    interactive_content: Optional[List['InteractiveLessonUpsert']] = None
+    problem_content: Optional[List['ProblemLessonUpsert']] = None
+    heading_content: Optional[List['HeadingLessonUpsert']] = None
+    image_content: Optional[List['ImageLessonUpsert']] = None
+    code_content: Optional[List['CodeLessonUpsert']] = None
+    hint_content: Optional[List['HintLessonUpsert']] = None
+    callout_content: Optional[List['CalloutLessonUpsert']] = None
 
 
 VideoLessonResponse.model_rebuild()
@@ -491,4 +621,15 @@ ImageLessonResponse.model_rebuild()
 CodeLessonResponse.model_rebuild()
 HintLessonResponse.model_rebuild()
 CalloutLessonResponse.model_rebuild()
+VideoLessonUpsert.model_rebuild()
+TextLessonUpsert.model_rebuild()
+QuizLessonUpsert.model_rebuild()
+InteractiveLessonUpsert.model_rebuild()
+ProblemLessonUpsert.model_rebuild()
+HeadingLessonUpsert.model_rebuild()
+ImageLessonUpsert.model_rebuild()
+CodeLessonUpsert.model_rebuild()
+HintLessonUpsert.model_rebuild()
+CalloutLessonUpsert.model_rebuild()
 ChildContentResponse.model_rebuild()
+ChildContentUpsert.model_rebuild()

@@ -1,15 +1,27 @@
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID as PG_UUID
-from enum import Enum
+from enum import Enum, StrEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey, Table
 from app.core.models import BaseModel
 from app.database import Base
 
 
+class LessonKind(StrEnum):
+    VIDEO = "video"
+    TEXT = "text"
+    QUIZ = "quiz"
+    INTERACTIVE = "interactive"
+    PROBLEM = "problem"
+    HEADING = "heading"
+    IMAGE = "image"
+    CODE = "code"
+    HINT = "hint"
+    CALLOUT = "callout"
+
+
 LessonKindEnum = ENUM(
-    "video", "text", "quiz", "interactive", "problem",
-    "heading", "image", "code", "hint", "callout",
+    *[e.value for e in LessonKind],
     name="lesson_kind_enum", create_type=True
 )
 

@@ -139,8 +139,10 @@ class LessonsView:
         payload: LessonCreate,
         current_user: User = Depends(get_current_active_user),
     ):
-        data = payload.model_dump()
-        return service_locator.general_service.create(db=self.db, data=data, model=Lesson)
+        data = payload.model_dump(exclude_unset=True)
+        return service_locator.lesson_service.create_lesson_with_content(
+            db=self.db, lesson_data=data
+        )
 
     @router.get("/{id}", response_model=LessonResponse)
     def get_lesson(self, id: UUID):
@@ -152,14 +154,17 @@ class LessonsView:
         return lesson
 
     @router.put("/{id}", response_model=LessonResponse)
+    @router.patch("/{id}", response_model=LessonResponse)
     def update_lesson(
         self,
         id: UUID,
         payload: LessonUpdate,
         current_user: User = Depends(get_current_active_user),
     ):
-        lesson = service_locator.general_service.update_data(
-            db=self.db, key=id, data=payload.model_dump(exclude_unset=True), model=Lesson
+        lesson = service_locator.lesson_service.update_lesson_with_content(
+            db=self.db,
+            lesson_id=id,
+            lesson_data=payload.model_dump(exclude_unset=True),
         )
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")

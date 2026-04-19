@@ -6,15 +6,15 @@ from app.core.models import BaseModel
 from enum import StrEnum
 
 
-LessonKindEnum = ENUM(
-    "video", "text", "quiz", "interactive", "problem",
-    "heading", "image", "code", "hint", "callout",
-    name="lesson_kind_enum", create_type=True
-)
+class CalloutType(StrEnum):
+    INFO = "info"
+    WARNING = "warning"
+    DANGER = "danger"
+    SUCCESS = "success"
 
 
 CalloutTypeEnum = ENUM(
-    "info", "warning", "danger", "success",
+    *[e.value for e in CalloutType],
     name="callout_type_enum", create_type=True
 )
 
@@ -105,8 +105,15 @@ class TextLessonAttachment(BaseModel):
 # ---------------------------------------------------------------------------
 # Quiz Lesson
 # ---------------------------------------------------------------------------
+class QuestionType(StrEnum):
+    SINGLE_CHOICE = "single_choice"
+    MULTIPLE_CHOICE = "multiple_choice"
+    TRUE_FALSE = "true_false"
+    SHORT_ANSWER = "short_answer"
+
+
 QuestionTypeEnum = ENUM(
-    "single_choice", "multiple_choice", "true_false", "short_answer",
+    *[e.value for e in QuestionType],
     name="question_type_enum", create_type=True
 )
 
@@ -162,9 +169,18 @@ class QuizQuestionOption(BaseModel):
 # ---------------------------------------------------------------------------
 # Interactive Lesson  (step-based, e.g. drag-drop, fill-blanks, coding tasks)
 # ---------------------------------------------------------------------------
+class InteractiveStepType(StrEnum):
+    INSTRUCTION = "instruction"
+    FILL_BLANK = "fill_blank"
+    DRAG_DROP = "drag_drop"
+    MATCHING = "matching"
+    CODE_CHALLENGE = "code_challenge"
+    IMAGE_HOTSPOT = "image_hotspot"
+    SORTING = "sorting"
+
+
 InteractiveStepTypeEnum = ENUM(
-    "instruction", "fill_blank", "drag_drop", "matching",
-    "code_challenge", "image_hotspot", "sorting",
+    *[e.value for e in InteractiveStepType],
     name="interactive_step_type_enum", create_type=True
 )
 
