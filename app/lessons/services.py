@@ -253,6 +253,7 @@ class LessonService:
             .all()
         )
         existing_map = {item.id: item for item in existing_items}
+        processed_ids = set()
 
         for item in items:
             item_data = dict(item)
@@ -275,10 +276,12 @@ class LessonService:
                 for key, value in item_data.items():
                     if value is not None:
                         setattr(instance, key, value)
+                processed_ids.add(instance.id)
             else:
                 instance = model(**item_data)
                 db.add(instance)
                 db.flush()
+                processed_ids.add(instance.id)
 
             self._sync_nested_content(db, instance, nested_payload)
             self._upsert_content_tree(
@@ -288,6 +291,11 @@ class LessonService:
                 parent_id=instance.id,
                 parent_type=child_parent_type,
             )
+
+        # Delete any items that were not processed (orphaned items)
+        for item_id, item in existing_map.items():
+            if item_id not in processed_ids:
+                db.delete(item)
 
     def _sync_nested_content(self, db: Session, instance: Any, nested_payload: Dict[str, Any]) -> None:
         if isinstance(instance, TextLesson) and nested_payload["attachment_ids"] is not None:
@@ -320,4 +328,5 @@ class LessonService:
             instance.test_cases = []
             db.flush()
             for test_case_payload in nested_payload["test_cases"]:
-                instance.test_cases.append(ProblemTestCase(**test_case_payload))
+                instance.test_cases.append(
+                    ProblemTestCase(**test_case_payload))
