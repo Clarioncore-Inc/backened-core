@@ -4,13 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from fastapi_utils.cbv import cbv
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.dependency_injection import service_locator
 from app.accounts.models import User
 from app.accounts.schemas import UserResponse
 from app.courses.models import Course
 from app.courses.schemas import CourseResponse
+from app.lessons.models import Section
 from app.admin_panel.schemas import (
     PlatformAnalyticsResponse,
     PlatformSettings,
@@ -43,7 +44,11 @@ class AdminView:
 
     @router.get("/courses", response_model=Page[CourseResponse])
     def list_courses(self):
-        return paginate(self.db, self.db.query(Course))
+        return paginate(
+            self.db,
+            self.db.query(Course)
+            .options(joinedload(Course.sections).joinedload(Section.lessons)),
+        )
 
     @router.get("/analytics", response_model=PlatformAnalyticsResponse)
     def get_analytics(self):

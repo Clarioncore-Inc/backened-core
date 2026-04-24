@@ -83,3 +83,30 @@ class Course(BaseModel):
                                           cover_image], uselist=False)
     thumbnail_attachment = relationship(
         "Attachment", foreign_keys=[thumbnail], uselist=False)
+
+    @property
+    def total_lessons(self) -> int:
+        return sum(len(section.lessons or []) for section in (self.sections or []))
+
+    @property
+    def total_duration_minutes(self) -> int:
+        return sum(
+            lesson.duration_minutes or 0
+            for section in (self.sections or [])
+            for lesson in (section.lessons or [])
+        )
+
+    @property
+    def total_duration_text(self) -> str:
+        total_minutes = self.total_duration_minutes
+        hours, minutes = divmod(total_minutes, 60)
+
+        if hours and minutes:
+            return f"{hours}h {minutes}m"
+        if hours:
+            return f"{hours}h"
+        return f"{minutes}m"
+
+    @property
+    def duration(self) -> str:
+        return self.total_duration_text

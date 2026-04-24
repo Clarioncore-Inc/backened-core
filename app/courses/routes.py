@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from fastapi_utils.cbv import cbv
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.dependency_injection import service_locator
 from app.courses.models import Course
+from app.lessons.models import Section
 from app.courses.schemas import (
     CourseBulkCreate,
     CourseBulkUpdate,
@@ -33,6 +34,7 @@ class CoursesView:
         return paginate(
             self.db,
             self.db.query(Course)
+            .options(joinedload(Course.sections).joinedload(Section.lessons))
             .filter(Course.is_public.is_(True), Course.status == "published"),
         )
 

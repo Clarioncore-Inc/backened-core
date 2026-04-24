@@ -81,6 +81,10 @@ class CourseResponse(BaseSchema):
     rating: float
     total_reviews: int
     total_enrollments: int
+    total_lessons: int = 0
+    total_duration_minutes: int = 0
+    total_duration_text: str = "0m"
+    duration: str = "0m"
     estimated_hours: float
     tags: Optional[List[str]] = None
     cover_image: Optional[AttachmentResponse] = None
