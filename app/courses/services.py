@@ -29,7 +29,8 @@ class CourseService:
             db.add(section)
             db.flush()
             if attachment_ids:
-                section.attachments = db.query(Attachment).filter(Attachment.id.in_(attachment_ids)).all()
+                section.attachments = db.query(Attachment).filter(
+                    Attachment.id.in_(attachment_ids)).all()
             for lesson_data in lessons_payload:
                 lesson_data.pop("section_id", None)
                 lesson = Lesson(section_id=section.id, **lesson_data)
@@ -75,7 +76,8 @@ class CourseService:
                     processed_section_ids.add(section.id)
 
                 if attachment_ids is not None:
-                    section.attachments = db.query(Attachment).filter(Attachment.id.in_(attachment_ids)).all()
+                    section.attachments = db.query(Attachment).filter(
+                        Attachment.id.in_(attachment_ids)).all()
 
                 if lessons_payload is not None:
                     existing_lessons = db.query(Lesson).filter(
@@ -99,12 +101,14 @@ class CourseService:
                             processed_lesson_ids.add(lesson.id)
 
                     # Delete lessons not in payload (only if lessons were explicitly provided)
-                    lessons_to_delete = [l for l in existing_lessons if l.id not in processed_lesson_ids]
+                    lessons_to_delete = [
+                        l for l in existing_lessons if l.id not in processed_lesson_ids]
                     for lesson in lessons_to_delete:
                         db.delete(lesson)
 
             # Delete sections not in payload
-            sections_to_delete = [s for s in existing_sections if s.id not in processed_section_ids]
+            sections_to_delete = [
+                s for s in existing_sections if s.id not in processed_section_ids]
             for section in sections_to_delete:
                 db.delete(section)
 
