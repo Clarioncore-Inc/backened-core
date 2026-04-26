@@ -97,7 +97,7 @@ class CourseResponse(BaseSchema):
     price: float
     discount: Optional[float] = None
     currency: str
-    is_public: bool
+    is_public: Optional[bool] = False
     status: str
     created_by: UUID
     org_id: Optional[UUID] = None
@@ -116,9 +116,10 @@ class CourseResponse(BaseSchema):
     learning_objectives: Optional[List[str]] = None
     prerequisites: Optional[List[str]] = None
     who_this_course_is_for: Optional[str] = None
-    enable_discussions: bool
-    enable_reviews: bool
-    enable_certificates: bool
+    enable_discussions: Optional[bool] = True
+    enable_reviews: Optional[bool] = True
+    enable_certificates: Optional[bool] = False
+
     maximum_students: Optional[int] = None
     published_at: Optional[datetime] = None
     created_at: datetime
