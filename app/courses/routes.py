@@ -54,7 +54,7 @@ class CoursesView:
     @router.get("/{id}", response_model=CourseWithSections,
                 dependencies=[Depends(get_current_active_user)])
     def get_course(self, id: UUID):
-        course = service_locator.course_service.get_with_sections(
+        course = service_locator.course_service.get_course_detail(
             db=self.db, course_id=id
         )
         if not course:

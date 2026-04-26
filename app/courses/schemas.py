@@ -2,10 +2,24 @@ from typing import Any, List, Literal, Optional
 from uuid import UUID
 from datetime import datetime
 from app.core.schema import BaseSchema
-from app.lessons.schemas import LessonCreate, LessonResponse, SectionResponse
+from app.lessons.schemas import LessonCreate, SectionResponse
 from app.reviews.schemas import ReviewResponse
-from pydantic import model_validator
+from pydantic import model_validator, EmailStr, Field
 from app.attachment.schemas import AttachmentResponse
+from app.accounts.schemas import UserResponse
+from enum import Enum
+
+
+class CollaboratorRole(str, Enum):
+    CO_INSTRUCTOR = "co-instructor"
+    EDITOR = "editor"
+    REVIEWER = "reviewer"
+    VERIFIER = "verifier"
+
+
+class CourseCollaboratorsCreate(BaseSchema):
+    email: EmailStr
+    role: CollaboratorRole = CollaboratorRole.CO_INSTRUCTOR
 
 
 class CourseCreate(BaseSchema):
@@ -35,6 +49,8 @@ class CourseCreate(BaseSchema):
     enable_reviews: bool = True
     enable_certificates: bool = False
     maximum_students: Optional[int] = None
+    collaborators: List[CourseCollaboratorsCreate] = Field(
+        default_factory=list)
 
 
 class CourseUpdate(BaseSchema):
@@ -61,6 +77,13 @@ class CourseUpdate(BaseSchema):
     enable_reviews: Optional[bool] = None
     enable_certificates: Optional[bool] = None
     maximum_students: Optional[int] = None
+    collaborators: Optional[List[CourseCollaboratorsCreate]] = None
+
+
+class CourseCollaboratorResponse(BaseSchema):
+    user: UserResponse
+    course_id: UUID
+    role: CollaboratorRole = CollaboratorRole.CO_INSTRUCTOR
 
 
 class CourseResponse(BaseSchema):
@@ -114,6 +137,7 @@ class CourseResponse(BaseSchema):
 class CourseWithSections(CourseResponse):
     sections: List[SectionResponse] = []
     reviews: List[ReviewResponse] = []
+    collaborators: List[CourseCollaboratorResponse] = []
 
 
 class BulkLessonCreate(LessonCreate):

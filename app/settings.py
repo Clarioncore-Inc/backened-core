@@ -10,6 +10,8 @@ FRONTEND_URL = config.get("FRONTEND_URL", "http://localhost:3000")
 API_BASE_URL = config.get(
     "API_BASE_URL", "https://backened-core.onrender.com/health")
 
+COLLABORATOR_INVITE_TOKEN_EXPIRY = int(
+    config.get("COLLABORATOR_INVITE_TOKEN_EXPIRY", 259200))
 
 # DATABASE
 APP_NAME = config.get("APP_NAME", "CerebroLearn")

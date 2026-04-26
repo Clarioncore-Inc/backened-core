@@ -51,3 +51,14 @@ class UserPublic(BaseSchema):
     streak: int
     avatar: Optional[str] = None
     location: Optional[str] = None
+
+
+class SetPasswordSchema(BaseSchema):
+    token: str
+    password: str
+    full_name: Optional[str] = None
+    avatar: Optional[str] = None
+    bio: Optional[str] = None
+    country: Optional[str] = None
+    phone_number: Optional[str] = None
+    location: Optional[str] = None

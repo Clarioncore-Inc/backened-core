@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.accounts.models import User
 from app.authentication.utils import hash_password
 
+from fastapi import HTTPException
+
 
 class AccountService:
     def get_by_email(self, db: Session, email: str) -> Optional[User]:
@@ -36,4 +38,22 @@ class AccountService:
         )
         db.add(user)
         db.flush()
+        return user
+
+    def set_password(self, db: Session, user_id: str, data: dict) -> User:
+        from app.authentication.utils import hash_password
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        password = data.pop("password")
+        user.hashed_password = hash_password(password)
+        user.is_active = True
+
+        for key, value in data.items():
+            if value is not None:
+                setattr(user, key, value)
+
+        db.commit()
+        db.refresh(user)
         return user

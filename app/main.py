@@ -9,7 +9,9 @@ from app.admin_ui import create_admin
 # ── Router imports ────────────────────────────────────────────────────────────
 from app.authentication.routes import router as auth_router
 from app.accounts.routes import router as accounts_router
+from app.accounts.routes import public_router as accounts_public_router
 from app.courses.routes import router as courses_router
+
 from app.lessons.routes import (
     bookmarks_router,
     callout_lessons_router,
@@ -61,6 +63,7 @@ API_PREFIX = "/api"
 
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(accounts_router, prefix=API_PREFIX)
+app.include_router(accounts_public_router, prefix=API_PREFIX)
 app.include_router(courses_router, prefix=API_PREFIX)
 app.include_router(lessons_router, prefix=API_PREFIX)
 app.include_router(sections_router, prefix=API_PREFIX)
