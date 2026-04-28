@@ -1,5 +1,7 @@
 from typing import Optional, List
+
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from app.courses.models import Course
 from app.lessons.models import Section, Lesson
 from app.attachment.models import Attachment
@@ -221,7 +223,13 @@ class CourseService:
         return (
             db.query(Course)
             .options(joinedload(Course.sections).joinedload(Section.lessons))
-            .filter(Course.created_by == user_id)
+            .outerjoin(CourseCollaborator, CourseCollaborator.course_id == Course.id)
+            .filter(
+                or_(
+                    Course.created_by == user_id,
+                    CourseCollaborator.user_id == user_id,
+                )
+            )
             .all()
         )
 
