@@ -56,7 +56,7 @@ class CourseService:
 
                 if not user:
 
-                    user = User(email=email, role="instructor",
+                    user = User(email=email, role="instructor", is_active=False,
                                 hashed_password="changeme", full_name="")
 
                     db.add(user)
@@ -183,7 +183,8 @@ class CourseService:
                 user = db.query(User).filter(User.email == email).first()
 
                 if not user:
-                    user = User(email=email, is_active=False)
+                    user = User(email=email, is_active=False,
+                                full_name="", hashed_password="changeme",)
                     db.add(user)
                     db.flush()
                     token = signer.dumps(str(user.id))
