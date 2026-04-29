@@ -11,6 +11,7 @@ from app.authentication.routes import router as auth_router
 from app.accounts.routes import router as accounts_router
 from app.accounts.routes import public_router as accounts_public_router
 from app.courses.routes import router as courses_router
+from app.courses.routes import course_comment_router
 
 from app.lessons.routes import (
     bookmarks_router,
@@ -90,6 +91,7 @@ app.include_router(admin_router, prefix=API_PREFIX)
 app.include_router(creator_router, prefix=API_PREFIX)
 app.include_router(leaderboard_router, prefix=API_PREFIX)
 app.include_router(attachments_router, prefix=API_PREFIX)
+app.include_router(course_comment_router, prefix=API_PREFIX)
 
 # ── Pagination ────────────────────────────────────────────────────────────────
 add_pagination(app)

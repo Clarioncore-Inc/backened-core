@@ -7,7 +7,7 @@ from fastapi_utils.cbv import cbv
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from app.core.dependency_injection import service_locator
-from app.courses.models import Course, CourseCollaborator
+from app.courses.models import Course, CourseCollaborator, CourseComment, CourseHistory
 from app.lessons.models import Section
 from app.courses.schemas import (
     CourseBulkCreate,
@@ -15,11 +15,15 @@ from app.courses.schemas import (
     CourseCreate,
     CourseResponse,
     CourseUpdate,
-    CourseWithSections
+    CourseWithSections,
+    CourseCommentCreate,
+    CourseCommentResponse,
+    CourseHistoryResponse
 )
 from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
 from app.accounts.models import User
+
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -67,15 +71,18 @@ class CoursesView:
             raise HTTPException(status_code=404, detail="Course not found")
         return course
 
-    @router.post("/", response_model=CourseResponse, status_code=201)
+    @router.post("/", response_model=CourseWithSections, status_code=201)
     def create_course(
         self,
-        payload: CourseCreate,
+        payload: CourseBulkCreate,
         current_user: User = Depends(get_current_active_user),
     ):
         data = payload.model_dump()
         data["created_by"] = current_user.id
-        return service_locator.general_service.create(db=self.db, data=data, model=Course)
+        sections_data = data.pop("sections", [])
+        return service_locator.course_service.create_bulk(
+            db=self.db, course_data=data, sections_data=sections_data
+        )
 
     @router.put("/{id}", response_model=CourseResponse)
     def update_course(
@@ -90,10 +97,16 @@ class CoursesView:
             raise HTTPException(status_code=404, detail="Course not found")
         if not service_locator.course_service.is_owner_or_admin(course, current_user):
             raise HTTPException(status_code=403, detail="Forbidden")
+
+        data = payload.model_dump(exclude_unset=True)
+
+        service_locator.course_service.track_course_changes(
+            self.db, course, data, current_user.id)
+
         return service_locator.general_service.update_data(
             db=self.db,
             key=id,
-            data=payload.model_dump(exclude_unset=True),
+            data=data,
             model=Course,
         )
 
@@ -132,3 +145,67 @@ class CoursesView:
             raise HTTPException(status_code=403, detail="Forbidden")
         service_locator.general_service.delete(
             db=self.db, key=id, model=Course)
+
+    @router.get("/{id}/history", response_model=Page[CourseHistoryResponse])
+    def get_course_history(self, id: UUID):
+        query = self.db.query(CourseHistory).filter(
+            CourseHistory.course_id == id
+        ).order_by(CourseHistory.created_at.desc())
+        return paginate(self.db, query)
+
+
+course_comment_router = APIRouter(
+    prefix="/courses/{pk}/comments", tags=["courses"])
+
+
+@cbv(course_comment_router)
+class CourseCommentsView:
+    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user)
+
+    @course_comment_router.post("/", response_model=CourseCommentResponse, status_code=201)
+    def create_course_comment(self, pk: UUID, payload: CourseCommentCreate):
+        data = payload.model_dump()
+        data["user_id"] = self.current_user.id
+        data["course_id"] = pk
+        return service_locator.general_service.create(db=self.db, data=data, model=CourseComment)
+
+    @course_comment_router.get("/", response_model=Page[CourseCommentResponse])
+    def list_course_comments(self, course_id: UUID):
+        query = self.db.query(CourseComment).filter(
+            CourseComment.course_id == course_id,
+            CourseComment.parent_id.is_(None)
+        )
+        return paginate(self.db, query)
+
+    @course_comment_router.put("/{id}", response_model=CourseCommentResponse)
+    def update_course_comment(self, id: UUID, payload: CourseCommentCreate):
+
+        comment = service_locator.general_service.update_data(
+            db=self.db,
+            key=id,
+            data=payload.model_dump(exclude_unset=True),
+            model=CourseComment,
+        )
+        if not comment:
+            raise HTTPException(
+                status_code=404, detail="Course comment not found")
+        return comment
+
+    @course_comment_router.delete("/{id}", status_code=204)
+    def delete_course_comment(self, id: UUID):
+
+        deleted = service_locator.general_service.delete(
+            db=self.db, key=id, model=CourseComment)
+        if not deleted:
+            raise HTTPException(
+                status_code=404, detail="Course comment not found")
+
+    @course_comment_router.post("/{id}/replies",
+                                response_model=CourseCommentResponse, status_code=201)
+    def create_reply(self, pk: UUID, id: UUID, payload: CourseCommentCreate):
+        data = payload.model_dump()
+        data["user_id"] = self.current_user.id
+        data["course_id"] = pk
+        data["parent_id"] = id
+        return service_locator.general_service.create(db=self.db, data=data, model=CourseComment)

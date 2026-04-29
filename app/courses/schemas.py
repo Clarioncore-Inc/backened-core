@@ -1,11 +1,12 @@
 from typing import Any, List, Literal, Optional
 from uuid import UUID
 from datetime import datetime
-from app.core.schema import BaseSchema
+from app.core.schema import BaseSchema, BaseResponseSchema
 from app.lessons.schemas import LessonCreate, SectionResponse
 from app.reviews.schemas import ReviewResponse
 from pydantic import model_validator, EmailStr, Field
 from app.attachment.schemas import AttachmentResponse
+from app.lessons.models import LessonKind
 from app.accounts.schemas import UserResponse
 from enum import Enum
 
@@ -17,17 +18,43 @@ class CollaboratorRole(str, Enum):
     VERIFIER = "verifier"
 
 
+class CourseLevel(str, Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    ADVANCED = "advanced"
+    ALL_LEVELS = "all_levels"
+
+
 class CourseCollaboratorsCreate(BaseSchema):
     email: EmailStr
     role: CollaboratorRole = CollaboratorRole.CO_INSTRUCTOR
+
+
+class CourseCommentCreate(BaseSchema):
+    content: str
+
+
+class CourseCommentResponse(BaseResponseSchema):
+    id: UUID
+    content: str
+    author: UserResponse
+    course_id: UUID
+    parent_id: UUID | None
+    replies: list["CourseCommentResponse"] = []
+
+
+class CourseHistoryResponse(BaseResponseSchema):
+    id: UUID
+    course_id: UUID
+    changed_by: UserResponse
+    changes: dict
 
 
 class CourseCreate(BaseSchema):
     title: str
     description: str
     category: str
-    level: Literal["beginner", "intermediate",
-                   "advanced", "all_levels"] = "beginner"
+    level: CourseLevel = CourseLevel.ALL_LEVELS
     org_id: Optional[UUID] = None
     is_public: bool = True
     cover_image: Optional[UUID] = None
@@ -58,7 +85,7 @@ class CourseUpdate(BaseSchema):
     sub_title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    level: Optional[str] = None
+    level: Optional[CourseLevel] = None
     is_public: Optional[bool] = None
     cover_image: Optional[UUID] = None
     thumbnail: Optional[UUID] = None
@@ -80,20 +107,20 @@ class CourseUpdate(BaseSchema):
     collaborators: Optional[List[CourseCollaboratorsCreate]] = None
 
 
-class CourseCollaboratorResponse(BaseSchema):
+class CourseCollaboratorResponse(BaseResponseSchema):
     user: UserResponse
     course_id: UUID
     role: CollaboratorRole = CollaboratorRole.CO_INSTRUCTOR
 
 
-class CourseResponse(BaseSchema):
-    id: UUID
+class CourseResponse(BaseResponseSchema):
+
     title: str
     sub_title: Optional[str] = None
     description: str
     category: str
     subcategory: Optional[str] = None
-    level: str
+    level: CourseLevel = CourseLevel.ALL_LEVELS
     price: float
     discount: Optional[float] = None
     currency: str
@@ -122,8 +149,6 @@ class CourseResponse(BaseSchema):
 
     maximum_students: Optional[int] = None
     published_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
 
     @model_validator(mode="before")
     @classmethod
@@ -161,7 +186,7 @@ class CourseBulkCreate(CourseCreate):
 class BulkLessonUpdate(BaseSchema):
     id: Optional[UUID] = None
     title: Optional[str] = None
-    kind: Optional[str] = None
+    kind: Optional[LessonKind] = None
     content: Optional[Any] = None
     position: Optional[int] = None
     duration_minutes: Optional[int] = None

@@ -46,3 +46,5 @@ class User(BaseModel):
         "PsychologistProfile", back_populates="user", uselist=False)
 
     attachments = relationship("Attachment", back_populates="user")
+    course_comments = relationship(
+        "CourseComment", back_populates="author", cascade="all, delete-orphan")

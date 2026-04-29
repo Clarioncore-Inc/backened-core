@@ -1,9 +1,13 @@
-from pydantic import BaseModel as PydanticBase, model_validator
-from typing import Any, get_args, get_origin, Union
+from pydantic import BaseModel as PydanticBase, model_validator, Field
+from typing import Any, get_args, get_origin, Union, Optional
+from datetime import datetime, timezone
+from uuid import UUID
+
 import uuid
 
 
 class BaseSchema(PydanticBase):
+
     model_config = {
         "from_attributes": True, "populate_by_name": True
     }
@@ -47,3 +51,11 @@ class BaseSchema(PydanticBase):
                     ]
 
         return normalized
+
+
+class BaseResponseSchema(BaseSchema):
+    id: Optional[UUID] = None
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))

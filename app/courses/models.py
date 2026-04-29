@@ -1,7 +1,7 @@
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, Integer, Numeric, String, Text
 )
-from sqlalchemy.dialects.postgresql import ARRAY, ENUM, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, ENUM, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey
 from app.core.models import BaseModel
@@ -27,6 +27,39 @@ class CourseCollaborator(BaseModel):
 
     course = relationship("Course", back_populates="collaborators")
     user = relationship("User")
+
+
+class CourseComment(BaseModel):
+    __tablename__ = "course_comments"
+
+    content = Column(Text, nullable=False)
+    user_id = Column(PG_UUID(as_uuid=True),
+                     ForeignKey("users.id"), nullable=False)
+    course_id = Column(PG_UUID(as_uuid=True),
+                       ForeignKey("courses.id"), nullable=False)
+
+    parent_id = Column(PG_UUID(as_uuid=True), ForeignKey(
+        "course_comments.id"), nullable=True)
+
+    author = relationship("User", back_populates="course_comments")
+    course = relationship("Course", back_populates="course_comments")
+
+    replies = relationship("CourseComment", back_populates="parent")
+    parent = relationship(
+        "CourseComment", back_populates="replies", remote_side="CourseComment.id")
+
+
+class CourseHistory(BaseModel):
+    __tablename__ = "course_history"
+
+    course_id = Column(PG_UUID(as_uuid=True),
+                       ForeignKey("courses.id"), nullable=False)
+    changed_by_id = Column(PG_UUID(as_uuid=True),
+                           ForeignKey("users.id"), nullable=False)
+    changes = Column(JSONB, nullable=False)
+
+    course = relationship("Course", back_populates="history")
+    changed_by = relationship("User")
 
 
 class Course(BaseModel):
@@ -83,6 +116,10 @@ class Course(BaseModel):
                                           cover_image], uselist=False)
     thumbnail_attachment = relationship(
         "Attachment", foreign_keys=[thumbnail], uselist=False)
+    course_comments = relationship(
+        "CourseComment", back_populates="course", cascade="all, delete-orphan")
+    history = relationship(
+        "CourseHistory", back_populates="course", cascade="all, delete-orphan")
 
     @property
     def total_lessons(self) -> int:

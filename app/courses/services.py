@@ -5,17 +5,19 @@ from sqlalchemy import or_
 from app.courses.models import Course
 from app.lessons.models import Section, Lesson
 from app.attachment.models import Attachment
+from uuid import UUID
 from app.accounts.models import User
-from app.courses.models import CourseCollaborator
+from app.courses.models import CourseCollaborator, CourseHistory
 from app import settings
 from itsdangerous import URLSafeTimedSerializer
+from fastapi.encoders import jsonable_encoder
 
 signer = URLSafeTimedSerializer(settings.SECRET_KEY)
 
 
 class CourseService:
 
-    def get_course_detail(self, db: Session, course_id) -> Optional[Course]:
+    def get_course_detail(self, db: Session, course_id: UUID) -> Optional[Course]:
         return (
             db.query(Course)
             .options(
@@ -30,6 +32,9 @@ class CourseService:
     def create_bulk(self, db: Session, course_data: dict, sections_data: list) -> Course:
         sections_payload = course_data.pop("sections", sections_data)
         collaborators_payload = course_data.pop("collaborators", None)
+
+        snapshot = jsonable_encoder(course_data)
+
         course = Course(**course_data)
         db.add(course)
         db.flush()
@@ -37,14 +42,18 @@ class CourseService:
         for sec_data in sections_payload:
             lessons_payload = sec_data.pop("lessons", [])
             attachment_ids = sec_data.pop("attachment_ids", None) or []
+
             section = Section(course_id=course.id, **sec_data)
+
             db.add(section)
             db.flush()
+
             if attachment_ids:
                 section.attachments = db.query(Attachment).filter(
                     Attachment.id.in_(attachment_ids)).all()
             for lesson_data in lessons_payload:
                 lesson_data.pop("section_id", None)
+
                 lesson = Lesson(section_id=section.id, **lesson_data)
                 db.add(lesson)
 
@@ -91,8 +100,12 @@ class CourseService:
                         role=role,
                     ))
 
+        self.track_course_changes(
+            db, course, snapshot, course.created_by, created=True, action="created")
+
         db.commit()
         db.refresh(course)
+
         return self.get_course_detail(db, course.id)
 
     def update_bulk(self, db: Session, course_id, course_data: dict) -> Course:
@@ -102,6 +115,11 @@ class CourseService:
         course = db.query(Course).filter(Course.id == course_id).first()
         if not course:
             return None
+
+        snapshot = {k: v for k, v in course_data.items() if v is not None}
+
+        self.track_course_changes(
+            db, course, snapshot, course.created_by, created=False, action="updated")
 
         for key, value in course_data.items():
             if value is not None:
@@ -217,9 +235,10 @@ class CourseService:
                     )
 
         db.commit()
+
         return self.get_course_detail(db, course_id)
 
-    def get_creator_courses(self, db: Session, user_id) -> List[Course]:
+    def get_creator_courses(self, db: Session, user_id: UUID) -> List[Course]:
         return (
             db.query(Course)
             .options(joinedload(Course.sections).joinedload(Section.lessons))
@@ -233,5 +252,26 @@ class CourseService:
             .all()
         )
 
-    def is_owner_or_admin(self, course: Course, user) -> bool:
+    def is_owner_or_admin(self, course: Course, user: User) -> bool:
         return str(course.created_by) == str(user.id) or user.role == "admin"
+
+    def track_course_changes(self, db: Session, course: Course, payload: dict,
+                             changed_by_id: UUID, created: bool = False, action: str = "updated") -> None:
+
+        if created:
+            changes = {"action": "created", "data": jsonable_encoder(payload)}
+        else:
+            diff = {
+                field: {"from": getattr(course, field), "to": value}
+                for field, value in payload.items()
+                if getattr(course, field, None) != value
+            }
+
+            if not diff:
+                return
+            changes = {"action": action, "data": diff}
+
+        history = CourseHistory(course_id=course.id,
+                                changed_by_id=changed_by_id, changes=changes)
+        db.add(history)
+        db.flush()
