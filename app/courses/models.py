@@ -38,6 +38,8 @@ class CourseComment(BaseModel):
     course_id = Column(PG_UUID(as_uuid=True),
                        ForeignKey("courses.id"), nullable=False)
 
+    resolved = Column(Boolean, default=False)
+
     parent_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "course_comments.id"), nullable=True)
 

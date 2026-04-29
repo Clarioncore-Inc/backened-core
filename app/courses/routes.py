@@ -31,9 +31,10 @@ router = APIRouter(prefix="/courses", tags=["courses"])
 @cbv(router)
 class CoursesView:
     db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user)
 
     @router.get("/", response_model=Page[CourseResponse])
-    def list_courses(self, current_user: User = Depends(get_current_active_user)):
+    def list_courses(self):
         query = (
             self.db.query(Course)
             .options(joinedload(Course.sections).joinedload(Section.lessons))
@@ -42,7 +43,7 @@ class CoursesView:
                 or_(
                     and_(Course.is_public.is_(True),
                          Course.status == "published"),
-                    CourseCollaborator.user_id == current_user.id,
+                    CourseCollaborator.user_id == self.current_user.id,
                 )
             )
         )
@@ -52,10 +53,9 @@ class CoursesView:
     def create_course_bulk(
         self,
         payload: CourseBulkCreate,
-        current_user: User = Depends(get_current_active_user),
     ):
         data = payload.model_dump()
-        data["created_by"] = current_user.id
+        data["created_by"] = self.current_user.id
         sections_data = data.pop("sections", [])
         return service_locator.course_service.create_bulk(
             db=self.db, course_data=data, sections_data=sections_data
@@ -75,10 +75,9 @@ class CoursesView:
     def create_course(
         self,
         payload: CourseBulkCreate,
-        current_user: User = Depends(get_current_active_user),
     ):
         data = payload.model_dump()
-        data["created_by"] = current_user.id
+        data["created_by"] = self.current_user.id
         sections_data = data.pop("sections", [])
         return service_locator.course_service.create_bulk(
             db=self.db, course_data=data, sections_data=sections_data
@@ -89,19 +88,18 @@ class CoursesView:
         self,
         id: UUID,
         payload: CourseUpdate,
-        current_user: User = Depends(get_current_active_user),
     ):
         course = service_locator.general_service.get(
             db=self.db, key=id, model=Course)
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
-        if not service_locator.course_service.is_owner_or_admin(course, current_user):
+        if not service_locator.course_service.is_owner_or_admin(course, self.current_user):
             raise HTTPException(status_code=403, detail="Forbidden")
 
         data = payload.model_dump(exclude_unset=True)
 
         service_locator.course_service.track_course_changes(
-            self.db, course, data, current_user.id)
+            self.db, course, data, self.current_user.id)
 
         return service_locator.general_service.update_data(
             db=self.db,
@@ -153,32 +151,17 @@ class CoursesView:
         ).order_by(CourseHistory.created_at.desc())
         return paginate(self.db, query)
 
+    # Course comments
 
-course_comment_router = APIRouter(
-    prefix="/courses/{pk}/comments", tags=["courses"])
-
-
-@cbv(course_comment_router)
-class CourseCommentsView:
-    db: Session = Depends(get_db)
-    current_user: User = Depends(get_current_active_user)
-
-    @course_comment_router.post("/", response_model=CourseCommentResponse, status_code=201)
-    def create_course_comment(self, pk: UUID, payload: CourseCommentCreate):
-        data = payload.model_dump()
-        data["user_id"] = self.current_user.id
-        data["course_id"] = pk
-        return service_locator.general_service.create(db=self.db, data=data, model=CourseComment)
-
-    @course_comment_router.get("/", response_model=Page[CourseCommentResponse])
-    def list_course_comments(self, course_id: UUID):
+    @router.get("/{id}/comments/", response_model=Page[CourseCommentResponse])
+    def list_course_comments(self, id: UUID):
         query = self.db.query(CourseComment).filter(
-            CourseComment.course_id == course_id,
+            CourseComment.course_id == id,
             CourseComment.parent_id.is_(None)
         )
         return paginate(self.db, query)
 
-    @course_comment_router.put("/{id}", response_model=CourseCommentResponse)
+    @router.put("/comments/{id}/", response_model=CourseCommentResponse)
     def update_course_comment(self, id: UUID, payload: CourseCommentCreate):
 
         comment = service_locator.general_service.update_data(
@@ -192,7 +175,7 @@ class CourseCommentsView:
                 status_code=404, detail="Course comment not found")
         return comment
 
-    @course_comment_router.delete("/{id}", status_code=204)
+    @router.delete("/comments/{id}/", status_code=204)
     def delete_course_comment(self, id: UUID):
 
         deleted = service_locator.general_service.delete(
@@ -201,11 +184,9 @@ class CourseCommentsView:
             raise HTTPException(
                 status_code=404, detail="Course comment not found")
 
-    @course_comment_router.post("/{id}/replies",
-                                response_model=CourseCommentResponse, status_code=201)
-    def create_reply(self, pk: UUID, id: UUID, payload: CourseCommentCreate):
+    @router.post("/{id}/comments/", response_model=CourseCommentResponse, status_code=201)
+    def create_course_comment(self, id: UUID, payload: CourseCommentCreate):
         data = payload.model_dump()
         data["user_id"] = self.current_user.id
-        data["course_id"] = pk
-        data["parent_id"] = id
+        data["course_id"] = id
         return service_locator.general_service.create(db=self.db, data=data, model=CourseComment)

@@ -32,15 +32,33 @@ class CourseCollaboratorsCreate(BaseSchema):
 
 class CourseCommentCreate(BaseSchema):
     content: str
+    resolved: Optional[bool] = False
+    parent_id: UUID | None = None
 
 
-class CourseCommentResponse(BaseResponseSchema):
+class CourseCommentReplyResponse(BaseSchema):
     id: UUID
+    resolved: Optional[bool] = False
+
     content: str
     author: UserResponse
     course_id: UUID
-    parent_id: UUID | None
-    replies: list["CourseCommentResponse"] = []
+    parent_id: UUID | None = None
+
+
+class CourseCommentResponse(BaseSchema):
+    id: UUID
+    content: str
+    resolved: Optional[bool] = False
+
+    author: UserResponse
+    course_id: UUID
+    parent_id: UUID | None = None
+    replies: list[CourseCommentReplyResponse] = []
+    author: UserResponse
+    course_id: UUID
+    parent_id: UUID | None = None
+    replies: list[CourseCommentReplyResponse] = []
 
 
 class CourseHistoryResponse(BaseResponseSchema):
