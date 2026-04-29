@@ -269,7 +269,8 @@ class CourseService:
 
             if not diff:
                 return
-            changes = {"action": action, "data": diff}
+
+            changes = {"action": action, "data": jsonable_encoder(diff)}
 
         history = CourseHistory(course_id=course.id,
                                 changed_by_id=changed_by_id, changes=changes)

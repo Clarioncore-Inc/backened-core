@@ -15,12 +15,12 @@ COLLABORATOR_INVITE_TOKEN_EXPIRY = int(
 
 # DATABASE
 APP_NAME = config.get("APP_NAME", "CerebroLearn")
-DATABASE_NAME = config.get("DATABASE_NAME", "Cerebrolearn")
-DATABASE_USER = config.get("DATABASE_USER", "postgres")
-DATABASE_PASSWORD = config.get("DATABASE_PASSWORD", "")
-DATABASE_PORT = config.get("DATABASE_PORT", "5432")
-DATABASE_HOST = config.get("DATABASE_HOST", "localhost")
-DATABASE_SSL = config.get("DATABASE_SSL", "")
+DATABASE_NAME = config.get("DATABASE_NAMET", "Cerebrolearn")
+DATABASE_USER = config.get("DATABASE_USERT", "postgres")
+DATABASE_PASSWORD = config.get("DATABASE_PASSWORDT", "")
+DATABASE_PORT = config.get("DATABASE_PORTT", "5432")
+DATABASE_HOST = config.get("DATABASE_HOSTT", "localhost")
+DATABASE_SSL = config.get("DATABASE_SSLT", "")
 
 FRONTEND_ORIGINS = config.get(
     "FRONTEND_ORIGINS", "http://localhost:3000").split(",")
