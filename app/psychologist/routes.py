@@ -22,17 +22,13 @@ from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
 from app.accounts.models import User
 from app.settings import FRONTEND_URL
-
+from app.psychologist.models import PsychologistProfile
 router = APIRouter(prefix="/psychologist", tags=["psychologist"])
 
 
 @cbv(router)
-class PsychologistView:
+class PsychologistPublicView:
     db: Session = Depends(get_db)
-
-    @router.get("/list", response_model=List[PsychologistProfileResponse])
-    def list_psychologists(self):
-        return service_locator.psychologist_service.list_approved(db=self.db)
 
     @router.post("/register", status_code=status.HTTP_201_CREATED)
     def register_psychologist(self, payload: PsychologistRegisterCreate):
@@ -60,24 +56,54 @@ class PsychologistView:
             "profile": PsychologistProfileResponse.model_validate(result["profile"]),
         }
 
+
+@cbv(router)
+class PsychologistView:
+    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user)
+
+    @router.get("/list/", response_model=List[PsychologistProfileResponse])
+    def list_psychologists(
+        self,
+        is_approved: bool = None,
+        specialization: str = None,
+        location: str = None,
+        search: str = None,
+    ):
+        if self.current_user.role in ("admin", "org_admin"):
+            query = self.db.query(PsychologistProfile)
+        else:
+            query = self.db.query(PsychologistProfile).filter(
+                PsychologistProfile.is_approved == True)
+
+        if is_approved is not None:
+            query = query.filter(
+                PsychologistProfile.is_approved.is_(is_approved))
+        if specialization:
+            query = query.filter(
+                PsychologistProfile.specialization.ilike(f"%{specialization}%"))
+        if location:
+            query = query.filter(
+                PsychologistProfile.location.ilike(f"%{location}%"))
+        if search:
+            query = query.filter(PsychologistProfile.bio.ilike(f"%{search}%"))
+
+        return query.all()
+
     @router.get("/profile", response_model=PsychologistProfileResponse)
-    def get_own_profile(self, current_user: User = Depends(get_current_active_user)):
+    def get_own_profile(self):
         profile = service_locator.psychologist_service.get_profile(
-            db=self.db, user_id=current_user.id
+            db=self.db, user_id=self.current_user.id
         )
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
         return profile
 
     @router.put("/profile", response_model=PsychologistProfileResponse)
-    def update_own_profile(
-        self,
-        payload: PsychologistProfileUpdate,
-        current_user: User = Depends(get_current_active_user),
-    ):
+    def update_own_profile(self, payload: PsychologistProfileUpdate):
         profile = service_locator.psychologist_service.update_profile(
             db=self.db,
-            user_id=current_user.id,
+            user_id=self.current_user.id,
             data=payload.model_dump(exclude_unset=True),
         )
         if not profile:
@@ -85,51 +111,38 @@ class PsychologistView:
         return profile
 
     @router.post("/admin/invite", response_model=InviteResponse, status_code=201)
-    def invite_psychologist(
-        self,
-        payload: InviteCreate,
-        current_user: User = Depends(get_current_active_user),
-    ):
-        if current_user.role != "admin":
+    def invite_psychologist(self, payload: InviteCreate):
+        if self.current_user.role != "admin":
             raise HTTPException(status_code=403, detail="Admin only")
         invite = service_locator.psychologist_service.create_invite(
             db=self.db,
-            admin_id=current_user.id,
+            admin_id=self.current_user.id,
             email=payload.email,
             frontend_url=FRONTEND_URL,
         )
         return invite
 
     @router.get("/admin/invites", response_model=List[InviteResponse])
-    def list_invites(self, current_user: User = Depends(get_current_active_user)):
-        if current_user.role != "admin":
+    def list_invites(self):
+        if self.current_user.role != "admin":
             raise HTTPException(status_code=403, detail="Admin only")
         return service_locator.psychologist_service.list_invites(db=self.db)
 
     @router.post("/bookings", response_model=BookingResponse, status_code=201)
-    def create_booking(
-        self,
-        payload: BookingCreate,
-        current_user: User = Depends(get_current_active_user),
-    ):
+    def create_booking(self, payload: BookingCreate):
         data = payload.model_dump()
         return service_locator.psychologist_service.create_booking(
-            db=self.db, student_id=current_user.id, data=data
+            db=self.db, student_id=self.current_user.id, data=data
         )
 
     @router.get("/bookings", response_model=List[BookingResponse])
-    def list_bookings(self, current_user: User = Depends(get_current_active_user)):
+    def list_bookings(self):
         return service_locator.psychologist_service.get_user_bookings(
-            db=self.db, user_id=current_user.id
+            db=self.db, user_id=self.current_user.id
         )
 
     @router.put("/bookings/{id}", response_model=BookingResponse)
-    def update_booking(
-        self,
-        id: UUID,
-        payload: BookingUpdate,
-        current_user: User = Depends(get_current_active_user),
-    ):
+    def update_booking(self, id: UUID, payload: BookingUpdate):
         booking = service_locator.psychologist_service.update_booking(
             db=self.db,
             booking_id=id,

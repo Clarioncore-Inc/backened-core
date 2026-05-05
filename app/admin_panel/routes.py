@@ -43,12 +43,25 @@ class AdminView:
         return paginate(self.db, self.db.query(User))
 
     @router.get("/courses", response_model=Page[CourseResponse])
-    def list_courses(self):
-        return paginate(
-            self.db,
+    def list_courses(
+        self,
+        status: str = None,
+        is_public: bool = None,
+        search: str = None,
+    ):
+        query = (
             self.db.query(Course)
-            .options(joinedload(Course.sections).joinedload(Section.lessons)),
+            .options(joinedload(Course.sections).joinedload(Section.lessons))
         )
+
+        if status:
+            query = query.filter(Course.status == status)
+        if is_public is not None:
+            query = query.filter(Course.is_public.is_(is_public))
+        if search:
+            query = query.filter(Course.title.ilike(f"%{search}%"))
+
+        return paginate(self.db, query)
 
     @router.get("/analytics", response_model=PlatformAnalyticsResponse)
     def get_analytics(self):

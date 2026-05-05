@@ -144,7 +144,7 @@ class CourseResponse(BaseResponseSchema):
     currency: str
     is_public: Optional[bool] = False
     status: str
-    created_by: UUID
+    creator: Optional[UserResponse] = None
     org_id: Optional[UUID] = None
     rating: float
     total_reviews: int

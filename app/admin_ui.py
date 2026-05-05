@@ -3,11 +3,14 @@ sqladmin – Admin UI for CerebroLearn
 Mount point: /admin
 Login credentials: set ADMIN_USERNAME / ADMIN_PASSWORD in .env
 """
+from wtforms import PasswordField
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from sqladmin.filters import BooleanFilter, AllUniqueStringValuesFilter
+from wtforms import StringField, PasswordField
+from sqladmin.forms import ModelConverter
 
 
 from app.settings import ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SECRET_KEY
@@ -38,12 +41,14 @@ class AdminAuth(AuthenticationBackend):
 
 
 # ── Model views ────────────────────────────────────────────────────────────────
+
+
 class UserAdmin(ModelView, model=models.User):
     name = "User"
     name_plural = "Users"
     icon = "fa-solid fa-users"
     column_list = [models.User.id, models.User.email, models.User.full_name, models.User.role,
-                   models.User.xp, models.User.streak, models.User.is_active, models.User.is_suspended, models.     User.created_at]
+                   models.User.xp, models.User.streak, models.User.is_active, models.User.is_suspended, models.User.created_at]
     column_searchable_list = [models.User.email, models.User.full_name]
     column_sortable_list = [models.User.created_at,
                             models.User.xp, models.User.streak, models.User.role]
@@ -54,7 +59,27 @@ class UserAdmin(ModelView, model=models.User):
     ]
     column_details_exclude_list = [models.User.hashed_password]
     form_excluded_columns = [models.User.hashed_password]
+    form_include_pk = True
     can_delete = True
+    form_extra_fields = {
+        "password": PasswordField("Set Password")
+    }
+
+    form_excluded_columns = [models.User.hashed_password]
+
+    async def scaffold_form(self, rules=None):
+        form_class = await super().scaffold_form(rules)
+        form_class.password = PasswordField("Set Password")
+        return form_class
+
+    async def on_model_change(self, data: dict, model: models.User, is_created: bool, request) -> None:
+        from app.authentication.utils import hash_password
+        password = data.pop("password", None)
+        if password:
+            model.hashed_password = hash_password(password)
+
+    async def after_model_change(self, data: dict, model: models.User, is_created: bool, request) -> None:
+        pass
 
 
 class CourseAdmin(ModelView, model=models.Course):

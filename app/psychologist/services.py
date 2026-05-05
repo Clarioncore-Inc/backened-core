@@ -15,6 +15,9 @@ class PsychologistService:
             .all()
         )
 
+    def list_all(self, db: Session) -> List[PsychologistProfile]:
+        return db.query(PsychologistProfile).all()
+
     def get_profile(self, db: Session, user_id) -> Optional[PsychologistProfile]:
         return (
             db.query(PsychologistProfile)
