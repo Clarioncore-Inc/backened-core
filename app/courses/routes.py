@@ -34,19 +34,37 @@ class CoursesView:
     current_user: User = Depends(get_current_active_user)
 
     @router.get("/", response_model=Page[CourseResponse])
-    def list_courses(self):
+    def list_courses(
+        self,
+        status: str = None,
+        is_public: bool = None,
+        search: str = None,
+    ):
         query = (
             self.db.query(Course)
             .options(joinedload(Course.sections).joinedload(Section.lessons))
-            .outerjoin(CourseCollaborator, CourseCollaborator.course_id == Course.id)
-            .filter(
-                or_(
-                    and_(Course.is_public.is_(True),
-                         Course.status == "published"),
-                    CourseCollaborator.user_id == self.current_user.id,
+        )
+
+        if self.current_user.role not in ("admin", "org_admin"):
+            query = (
+                query
+                .outerjoin(CourseCollaborator, CourseCollaborator.course_id == Course.id)
+                .filter(
+                    or_(
+                        and_(Course.is_public.is_(True),
+                             Course.status == "published"),
+                        CourseCollaborator.user_id == self.current_user.id,
+                    )
                 )
             )
-        )
+
+        if status:
+            query = query.filter(Course.status == status)
+        if is_public is not None:
+            query = query.filter(Course.is_public.is_(is_public))
+        if search:
+            query = query.filter(Course.title.ilike(f"%{search}%"))
+
         return paginate(self.db, query)
 
     @router.post("/bulk", response_model=CourseWithSections, status_code=201)
