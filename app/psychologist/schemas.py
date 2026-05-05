@@ -3,11 +3,12 @@ from uuid import UUID
 from datetime import date, datetime
 from app.core.schema import BaseSchema
 from pydantic import EmailStr
+from app.accounts.schemas import UserResponse
 
 
 class PsychologistProfileResponse(BaseSchema):
     id: UUID
-    user_id: UUID
+    user:   Optional[UserResponse] = None
     hourly_rate: Optional[Any] = None
     bio: Optional[str] = None
     is_approved: bool
