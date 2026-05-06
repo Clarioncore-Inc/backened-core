@@ -109,6 +109,21 @@ class PsychologistView:
             raise HTTPException(status_code=404, detail="Profile not found")
         return profile
 
+    @router.put("/{id}", response_model=PsychologistProfileResponse)
+    def update(self, id: UUID, payload: PsychologistProfileUpdate):
+
+        data = payload.model_dump(exclude_unset=True, mode="json")
+
+        profile = service_locator.general_service.update_data(
+            db=self.db,
+            key=id,
+            data=data,
+            model=PsychologistProfile,
+        )
+        if not profile:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        return profile
+
     @router.put("/profile", response_model=PsychologistProfileResponse)
     def update_own_profile(self, payload: PsychologistProfileUpdate):
         profile = service_locator.psychologist_service.update_profile(
