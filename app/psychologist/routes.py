@@ -65,7 +65,7 @@ class PsychologistView:
     @router.get("/list/", response_model=List[PsychologistProfileResponse])
     def list_psychologists(
         self,
-        is_approved: bool = None,
+        status: str = None,
         specialization: str = None,
         location: str = None,
         search: str = None,
@@ -74,11 +74,11 @@ class PsychologistView:
             query = self.db.query(PsychologistProfile)
         else:
             query = self.db.query(PsychologistProfile).filter(
-                PsychologistProfile.is_approved == True)
+                PsychologistProfile.status == "approved")
 
-        if is_approved is not None:
+        if status is not None:
             query = query.filter(
-                PsychologistProfile.is_approved.is_(is_approved))
+                PsychologistProfile.status == "approved")
         if specialization:
             query = query.filter(
                 PsychologistProfile.specialization.ilike(f"%{specialization}%"))
