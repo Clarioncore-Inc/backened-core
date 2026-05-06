@@ -90,6 +90,16 @@ class PsychologistView:
 
         return query.all()
 
+    @router.get("/{id}", response_model=PsychologistProfileResponse,
+                dependencies=[Depends(get_current_active_user)])
+    def get_psychologis(self, id: UUID):
+        course = service_locator.general_service.get(
+            db=self.db, key=id, model=PsychologistProfile
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+        return course
+
     @router.get("/profile", response_model=PsychologistProfileResponse)
     def get_own_profile(self):
         profile = service_locator.psychologist_service.get_profile(

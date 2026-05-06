@@ -4,6 +4,13 @@ from datetime import date, datetime
 from app.core.schema import BaseSchema
 from pydantic import EmailStr
 from app.accounts.schemas import UserResponse
+from enum import Enum
+
+
+class PsychologistProfileStatus(Enum):
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    REJECTED = "rejected"
 
 
 class PsychologistProfileResponse(BaseSchema):
@@ -21,6 +28,7 @@ class PsychologistProfileResponse(BaseSchema):
     location: Optional[str] = None
     education_and_qualifications: Optional[list[str]] = None
     certification_and_additional_training: Optional[list[str]] = None
+    status: Optional[PsychologistProfileStatus] = None
 
 
 class PsychologistProfileUpdate(BaseSchema):
@@ -33,6 +41,7 @@ class PsychologistProfileUpdate(BaseSchema):
     location: Optional[str] = None
     education_and_qualifications: Optional[list[str]] = None
     certification_and_additional_training: Optional[list[str]] = None
+    status: Optional[PsychologistProfileStatus] = None
 
 
 class PsychologistRegisterCreate(BaseSchema):
@@ -48,6 +57,7 @@ class PsychologistRegisterCreate(BaseSchema):
     location: Optional[str] = None
     education_and_qualifications: Optional[list[str]] = None
     certification_and_additional_training: Optional[list[str]] = None
+    status: Optional[PsychologistProfileStatus] = None
 
 
 class InviteCreate(BaseSchema):

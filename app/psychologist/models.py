@@ -19,6 +19,12 @@ InviteStatusEnum = ENUM(
 )
 
 
+PsychologistProfileEnum = ENUM(
+    "pending", "approved", "rejected",
+    name="psychologist_profile_enum", create_type=True
+)
+
+
 class PsychologistProfile(BaseModel):
     __tablename__ = "psychologist_profiles"
 
@@ -33,6 +39,9 @@ class PsychologistProfile(BaseModel):
     about_you = Column(Text, nullable=True)
     education_and_qualifications = Column(ARRAY(Text), nullable=True)
     certification_and_additional_training = Column(ARRAY(Text), nullable=True)
+
+    status = Column(
+        PsychologistProfileEnum, nullable=True, default="pending")
     # Relationships
     user = relationship("User", back_populates="psychologist_profile")
 
