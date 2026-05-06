@@ -10,7 +10,7 @@ from app.psychologist.schemas import (
     AcceptInvitePayload,
     BookingCreate,
     BookingResponse,
-    BookingUpdate,
+    BookingCreate,
     InviteCreate,
     InviteResponse,
     PsychologistProfileResponse,
@@ -18,6 +18,7 @@ from app.psychologist.schemas import (
     PsychologistRegisterCreate,
     PsychologistProfileStatus
 )
+from app.psychologist.models import Booking
 from app.accounts.schemas import UserResponse
 from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
@@ -163,11 +164,12 @@ class PsychologistView:
         )
 
     @router.put("/bookings/{id}", response_model=BookingResponse)
-    def update_booking(self, id: UUID, payload: BookingUpdate):
-        booking = service_locator.psychologist_service.update_booking(
+    def update_booking(self, id: UUID, payload: BookingCreate):
+        booking = service_locator.general_service.update_data(
             db=self.db,
-            booking_id=id,
+            key=id,
             data=payload.model_dump(exclude_unset=True),
+            model=Booking,
         )
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")

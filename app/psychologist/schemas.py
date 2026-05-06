@@ -5,6 +5,7 @@ from app.core.schema import BaseSchema
 from pydantic import EmailStr
 from app.accounts.schemas import UserResponse
 from enum import Enum
+from app.psychologist.models import BookingType, BookingStatus, RecurringFreq
 
 
 class PsychologistProfileStatus(Enum):
@@ -91,7 +92,7 @@ class AcceptInvitePayload(BaseSchema):
 
 class BookingCreate(BaseSchema):
     psychologist_id: UUID
-    date: Optional[date] = None
+    date: date
     time: Optional[str] = None
     session_type: Optional[str] = None
     notes: Optional[str] = None
@@ -99,24 +100,26 @@ class BookingCreate(BaseSchema):
     recurring_frequency: Optional[str] = None
     reminder_preferences: Optional[Any] = None
     price: Optional[float] = None
+    booking_type: Optional[BookingType] = None
+    status: Optional[BookingStatus] = None
 
-
-class BookingUpdate(BaseSchema):
-    status: str
+    model_config = {"from_attributes": True,
+                    "use_enum_values": True}
 
 
 class BookingResponse(BaseSchema):
     id: UUID
-    student_id: UUID
-    psychologist_id: UUID
-    date: Optional[date] = None
+    psychologist: Optional[UserResponse] = None
+    student: Optional[UserResponse] = None
+    date: date
     time: str
     session_type: str
     notes: Optional[str] = None
     status: str
     is_recurring: bool
-    recurring_frequency: Optional[str] = None
+    recurring_frequency: Optional[RecurringFreq] = None
     reminder_preferences: Optional[Any] = None
     price: Optional[Any] = None
     created_at: datetime
     updated_at: datetime
+    booking_type: Optional[BookingType] = None

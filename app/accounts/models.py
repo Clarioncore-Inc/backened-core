@@ -48,3 +48,8 @@ class User(BaseModel):
     attachments = relationship("Attachment", back_populates="user")
     course_comments = relationship(
         "CourseComment", back_populates="author", cascade="all, delete-orphan")
+
+    bookings_as_student = relationship(
+        "Booking", foreign_keys="Booking.student_id", back_populates="student")
+    bookings_as_psychologist = relationship(
+        "Booking", foreign_keys="Booking.psychologist_id", back_populates="psychologist")
