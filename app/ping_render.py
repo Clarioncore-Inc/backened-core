@@ -1,3 +1,4 @@
+import os
 import asyncio
 from alembic import command
 from alembic.config import Config
@@ -39,5 +40,7 @@ async def lifespan(app: FastAPI):
 
 
 def run_migrations():
+    if os.getenv("RUN_MIGRATIONS", "false").lower() != "true":
+        return
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")
