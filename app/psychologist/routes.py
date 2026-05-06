@@ -16,6 +16,7 @@ from app.psychologist.schemas import (
     PsychologistProfileResponse,
     PsychologistProfileUpdate,
     PsychologistRegisterCreate,
+    PsychologistProfileStatus
 )
 from app.accounts.schemas import UserResponse
 from app.dependencies import get_db
@@ -65,20 +66,15 @@ class PsychologistView:
     @router.get("/list/", response_model=List[PsychologistProfileResponse])
     def list_psychologists(
         self,
-        status: str = None,
+        status: PsychologistProfileStatus = None,
         specialization: str = None,
         location: str = None,
         search: str = None,
     ):
-        if self.current_user.role in ("admin", "org_admin"):
-            query = self.db.query(PsychologistProfile)
-        else:
-            query = self.db.query(PsychologistProfile).filter(
-                PsychologistProfile.status == "approved")
+        query = self.db.query(PsychologistProfile)
 
-        if status is not None:
-            query = query.filter(
-                PsychologistProfile.status == "approved")
+        if status:
+            query = query.filter(PsychologistProfile.status == status.value)
         if specialization:
             query = query.filter(
                 PsychologistProfile.specialization.ilike(f"%{specialization}%"))

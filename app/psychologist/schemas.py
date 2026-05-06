@@ -43,6 +43,9 @@ class PsychologistProfileUpdate(BaseSchema):
     certification_and_additional_training: Optional[list[str]] = None
     status: Optional[PsychologistProfileStatus] = None
 
+    # model_config = {"from_attributes": True,
+    #                 "use_enum_values": True}
+
 
 class PsychologistRegisterCreate(BaseSchema):
     email: EmailStr
