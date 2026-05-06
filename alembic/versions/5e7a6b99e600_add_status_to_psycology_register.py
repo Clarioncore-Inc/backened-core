@@ -48,3 +48,25 @@ def downgrade() -> None:
 
     postgresql.ENUM(name='psychologist_profile_enum').drop(
         op.get_bind(), checkfirst=True)
+
+
+"""add status to psycology register
+
+Revision ID: 5e7a6b99e600
+Revises: 88274a691abb
+Create Date: 2026-05-06 10:50:14.304961
+
+"""
+
+revision: str = '5e7a6b99e600'
+down_revision: Union[str, Sequence[str], None] = '88274a691abb'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    pass
+
+
+def downgrade() -> None:
+    pass
