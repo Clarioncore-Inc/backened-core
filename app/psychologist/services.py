@@ -1,10 +1,13 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
 from app.psychologist.models import Booking, PsychologistInvite, PsychologistProfile
+from app.accounts.models import User
+from uuid import UUID
 
 
 class PsychologistService:
@@ -171,3 +174,17 @@ class PsychologistService:
         db.commit()
         db.refresh(booking)
         return booking
+
+    def resolve_user_id(self, db: Session, identifier: UUID) -> UUID:
+        profile = db.query(PsychologistProfile).filter(
+            PsychologistProfile.id == identifier
+        ).first()
+        if profile:
+            return profile.user_id
+
+        user = db.query(User).filter(User.id == identifier).first()
+        if user:
+            return user.id
+
+        raise HTTPException(
+            status_code=404, detail="User or psychologist not found")

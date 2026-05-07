@@ -113,3 +113,18 @@ class Booking(BaseModel):
     model_config = {
         "from_attributes": True,
         "use_enum_values": True}
+
+
+class AvailabilitySchedule(BaseModel):
+    __tablename__ = "availability_schedules"
+
+    psychologist_id = Column(PG_UUID(as_uuid=True), ForeignKey(
+        "users.id"), nullable=False, unique=True)
+    schedule = Column(JSONB, nullable=False, default=dict)
+
+    psychologist = relationship("User", back_populates="availability_schedule")
+
+    model_config = {
+        "from_attributes": True,
+        "use_enum_values": True
+    }

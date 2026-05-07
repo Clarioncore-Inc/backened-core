@@ -53,3 +53,6 @@ class User(BaseModel):
         "Booking", foreign_keys="Booking.student_id", back_populates="student")
     bookings_as_psychologist = relationship(
         "Booking", foreign_keys="Booking.psychologist_id", back_populates="psychologist")
+
+    availability_schedule = relationship(
+        "AvailabilitySchedule", back_populates="psychologist", uselist=False)

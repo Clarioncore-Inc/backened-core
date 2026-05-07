@@ -1,3 +1,4 @@
+from pydantic import computed_field
 from typing import Any, Optional
 from uuid import UUID
 from datetime import date, datetime
@@ -123,3 +124,43 @@ class BookingResponse(BaseSchema):
     created_at: datetime
     updated_at: datetime
     booking_type: Optional[BookingType] = None
+
+
+class DaySchedule(BaseSchema):
+    enabled: bool = True
+    start: str = "10:00"
+    end: str = "18:00"
+
+
+class AvailabilityScheduleCreate(BaseSchema):
+    monday: DaySchedule = DaySchedule()
+    tuesday: DaySchedule = DaySchedule()
+    wednesday: DaySchedule = DaySchedule()
+    thursday: DaySchedule = DaySchedule()
+    friday: DaySchedule = DaySchedule()
+    saturday: DaySchedule = DaySchedule()
+    sunday: DaySchedule = DaySchedule()
+
+
+class AvailabilityScheduleResponse(BaseSchema):
+    id: UUID
+    psychologist_id: UUID
+    schedule: AvailabilityScheduleCreate
+    created_at: datetime
+    updated_at: datetime
+
+    @computed_field
+    @property
+    def working_days(self) -> int:
+        return sum(1 for day in self.schedule.model_dump().values() if day["enabled"])
+
+    @computed_field
+    @property
+    def total_hours(self) -> float:
+        total = 0.0
+        for day in self.schedule.model_dump().values():
+            if day["enabled"]:
+                start = datetime.strptime(day["start"], "%H:%M")
+                end = datetime.strptime(day["end"], "%H:%M")
+                total += (end - start).seconds / 3600
+        return total

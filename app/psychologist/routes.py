@@ -16,7 +16,10 @@ from app.psychologist.schemas import (
     PsychologistProfileResponse,
     PsychologistProfileUpdate,
     PsychologistRegisterCreate,
-    PsychologistProfileStatus
+    PsychologistProfileStatus,
+    AvailabilityScheduleResponse,
+    AvailabilityScheduleCreate
+
 )
 from app.psychologist.models import Booking
 from app.accounts.schemas import UserResponse
@@ -24,7 +27,7 @@ from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
 from app.accounts.models import User
 from app.settings import FRONTEND_URL
-from app.psychologist.models import PsychologistProfile
+from app.psychologist.models import PsychologistProfile, AvailabilitySchedule
 router = APIRouter(prefix="/psychologist", tags=["psychologist"])
 
 
@@ -174,3 +177,46 @@ class PsychologistView:
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         return booking
+
+
+@cbv(router)
+class AvailabilityScheduleView:
+    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user)
+
+    @router.post("/{id}/availability/", response_model=AvailabilityScheduleResponse)
+    def create_or_update(self, id: UUID, payload: AvailabilityScheduleCreate):
+
+        id = service_locator.psychologist_service.resolve_user_id(self.db, id)
+
+        existing = self.db.query(AvailabilitySchedule).filter(
+            AvailabilitySchedule.psychologist_id == id
+        ).first()
+
+        if existing:
+            return service_locator.general_service.update_data(
+                db=self.db,
+                key=existing.id,
+                data={"schedule": payload.model_dump(mode="json")},
+                model=AvailabilitySchedule,
+            )
+
+        return service_locator.general_service.create(
+            db=self.db,
+            data={"psychologist_id": id,
+                  "schedule": payload.model_dump(mode="json")},
+            model=AvailabilitySchedule,
+        )
+
+    @router.get("/{id}/availability/", response_model=AvailabilityScheduleResponse)
+    def get(self, id: UUID):
+
+        id = service_locator.psychologist_service.resolve_user_id(self.db, id)
+
+        schedule = self.db.query(AvailabilitySchedule).filter(
+            AvailabilitySchedule.psychologist_id == id,
+        ).first()
+        if not schedule:
+            raise HTTPException(
+                status_code=404, detail="Availability schedule not found")
+        return schedule
