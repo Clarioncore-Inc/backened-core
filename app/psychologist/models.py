@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Numeric, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey
@@ -19,6 +19,17 @@ PsychologistProfileEnum = ENUM(
 )
 
 
+class BookingType(PyEnum):
+    EMERGENCY = "emergency"
+    STANDARD = "standard"
+
+
+BookingTypeEnum = ENUM(
+    *[e.value for e in BookingType],
+    name="booking_type_enum", create_type=True
+)
+
+
 class PsychologistProfile(BaseModel):
     __tablename__ = "psychologist_profiles"
 
@@ -33,6 +44,12 @@ class PsychologistProfile(BaseModel):
     about_you = Column(Text, nullable=True)
     education_and_qualifications = Column(ARRAY(Text), nullable=True)
     certification_and_additional_training = Column(ARRAY(Text), nullable=True)
+    default_session_duration = Column(Integer, nullable=True, default=60)
+    default_booking_type = Column(BookingTypeEnum, nullable=True, default="standard")
+    allow_emergency_bookings = Column(Boolean, nullable=False, default=False)
+    is_profile_public = Column(Boolean, nullable=False, default=True)
+    accepting_new_clients = Column(Boolean, nullable=False, default=True)
+    visible_profile_fields = Column(JSONB, nullable=True, default=dict)
 
     status = Column(
         PsychologistProfileEnum, nullable=True, default="pending")
@@ -64,6 +81,7 @@ RecurringFreqEnum = ENUM(
 
 
 class BookingStatus(PyEnum):
+    PENDING = "pending"
     CONFIRMED = "confirmed"
     EMERGENCY = "emergency"
     CANCELLED = "cancelled"
@@ -73,17 +91,6 @@ class BookingStatus(PyEnum):
 BookingStatusEnum = ENUM(
     *[e.value for e in BookingStatus],
     name="booking_status_enum", create_type=True
-)
-
-
-class BookingType(PyEnum):
-    EMERGENCY = "emergency"
-    STANDARD = "standard"
-
-
-BookingTypeEnum = ENUM(
-    *[e.value for e in BookingType],
-    name="booking_type_enum", create_type=True
 )
 
 
@@ -98,12 +105,15 @@ class Booking(BaseModel):
     time = Column(String, nullable=False)
     session_type = Column(String, nullable=False)
     notes = Column(Text, nullable=True)
-    status = Column(BookingStatusEnum, nullable=False, default="confirmed")
+    status = Column(BookingStatusEnum, nullable=False, default="pending")
+    rejection_reason = Column(Text, nullable=True)
     is_recurring = Column(Boolean, default=False)
     recurring_frequency = Column(RecurringFreqEnum, nullable=True)
     reminder_preferences = Column(JSONB, nullable=True)
     price = Column(Numeric, nullable=False)
     booking_type = Column(BookingTypeEnum, nullable=True, default="standard")
+    session_notes = Column(JSONB, nullable=True)
+    session_notes_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     student = relationship("User", foreign_keys=[
                            student_id], back_populates="bookings_as_student")

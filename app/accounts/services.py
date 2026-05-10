@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.accounts.models import User
-from app.authentication.utils import hash_password
+from app.authentication.utils import hash_password, verify_password
 
 from fastapi import HTTPException
 
@@ -57,3 +57,13 @@ class AccountService:
         db.commit()
         db.refresh(user)
         return user
+
+    def change_password(self, db: Session, user: User, current_password: str, new_password: str) -> None:
+        if not verify_password(current_password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        if current_password == new_password:
+            raise HTTPException(status_code=400, detail="New password must be different")
+
+        user.hashed_password = hash_password(new_password)
+        db.commit()
+        db.refresh(user)

@@ -62,3 +62,12 @@ class SetPasswordSchema(BaseSchema):
     country: Optional[str] = None
     phone_number: Optional[str] = None
     location: Optional[str] = None
+
+
+class ChangePasswordSchema(BaseSchema):
+    current_password: str
+    new_password: str
+
+
+class PasswordChangeResponse(BaseSchema):
+    success: bool = True

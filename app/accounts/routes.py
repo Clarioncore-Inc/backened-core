@@ -7,7 +7,13 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
 from app.accounts.models import User
-from app.accounts.schemas import UserResponse, UserUpdate, SetPasswordSchema
+from app.accounts.schemas import (
+    ChangePasswordSchema,
+    PasswordChangeResponse,
+    SetPasswordSchema,
+    UserResponse,
+    UserUpdate,
+)
 from app.core.dependency_injection import service_locator
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -34,6 +40,16 @@ class AccountsView:
             user=self.current_user,
             updates=updates.model_dump(exclude_unset=True),
         )
+
+    @router.post("/change-password", response_model=PasswordChangeResponse)
+    def change_password(self, payload: ChangePasswordSchema):
+        service_locator.account_service.change_password(
+            db=self.db,
+            user=self.current_user,
+            current_password=payload.current_password,
+            new_password=payload.new_password,
+        )
+        return PasswordChangeResponse(success=True)
 
 
 @cbv(public_router)

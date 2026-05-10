@@ -9,11 +9,13 @@ from app.core.dependency_injection import service_locator
 from app.psychologist.schemas import (
     AcceptInvitePayload,
     BookingCreate,
+    BookingNotesPayload,
+    BookingNotesResponse,
     BookingResponse,
-    BookingCreate,
+    BookingTransitionPayload,
     InviteCreate,
     InviteResponse,
-    PsychologistProfileResponse,
+    PsychologistProfileResponse, 
     PsychologistProfileUpdate,
     PsychologistRegisterCreate,
     PsychologistProfileStatus,
@@ -90,35 +92,10 @@ class PsychologistView:
 
         return query.all()
 
-    @router.get("/{id}", response_model=PsychologistProfileResponse,
-                dependencies=[Depends(get_current_active_user)])
-    def get_psychologis(self, id: UUID):
-        course = service_locator.general_service.get(
-            db=self.db, key=id, model=PsychologistProfile
-        )
-        if not course:
-            raise HTTPException(status_code=404, detail="Course not found")
-        return course
-
     @router.get("/profile", response_model=PsychologistProfileResponse)
     def get_own_profile(self):
         profile = service_locator.psychologist_service.get_profile(
             db=self.db, user_id=self.current_user.id
-        )
-        if not profile:
-            raise HTTPException(status_code=404, detail="Profile not found")
-        return profile
-
-    @router.put("/{id}", response_model=PsychologistProfileResponse)
-    def update(self, id: UUID, payload: PsychologistProfileUpdate):
-
-        data = payload.model_dump(exclude_unset=True, mode="json")
-
-        profile = service_locator.general_service.update_data(
-            db=self.db,
-            key=id,
-            data=data,
-            model=PsychologistProfile,
         )
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
@@ -129,7 +106,7 @@ class PsychologistView:
         profile = service_locator.psychologist_service.update_profile(
             db=self.db,
             user_id=self.current_user.id,
-            data=payload.model_dump(exclude_unset=True),
+            data=payload.model_dump(exclude_unset=True, mode="json"),
         )
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
@@ -166,17 +143,70 @@ class PsychologistView:
             db=self.db, user_id=self.current_user.id
         )
 
-    @router.put("/bookings/{id}", response_model=BookingResponse)
-    def update_booking(self, id: UUID, payload: BookingCreate):
-        booking = service_locator.general_service.update_data(
+    @router.get("/bookings/{id}/notes", response_model=BookingNotesResponse)
+    def get_booking_notes(self, id: UUID):
+        booking = service_locator.psychologist_service.get_booking_notes(
             db=self.db,
-            key=id,
-            data=payload.model_dump(exclude_unset=True),
-            model=Booking,
+            booking_id=id,
+            psychologist_id=self.current_user.id,
+        )
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        return BookingNotesResponse(
+            **(booking.session_notes or {}),
+            updated_at=booking.session_notes_updated_at,
+        )
+
+    @router.put("/bookings/{id}/notes", response_model=BookingNotesResponse)
+    def update_booking_notes(self, id: UUID, payload: BookingNotesPayload):
+        booking = service_locator.psychologist_service.upsert_booking_notes(
+            db=self.db,
+            booking_id=id,
+            psychologist_id=self.current_user.id,
+            data=payload.model_dump(exclude_unset=True, mode="json"),
+        )
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        return BookingNotesResponse(
+            **(booking.session_notes or {}),
+            updated_at=booking.session_notes_updated_at,
+        )
+
+    @router.put("/bookings/{id}", response_model=BookingResponse)
+    def update_booking(self, id: UUID, payload: BookingTransitionPayload):
+        booking = service_locator.psychologist_service.transition_booking_status(
+            db=self.db,
+            booking_id=id,
+            psychologist_id=self.current_user.id,
+            data=payload.model_dump(exclude_unset=True, mode="json"),
         )
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         return booking
+
+    @router.get("/{id}", response_model=PsychologistProfileResponse,
+                dependencies=[Depends(get_current_active_user)])
+    def get_psychologis(self, id: UUID):
+        course = service_locator.general_service.get(
+            db=self.db, key=id, model=PsychologistProfile
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+        return course
+
+    @router.put("/{id}", response_model=PsychologistProfileResponse)
+    def update(self, id: UUID, payload: PsychologistProfileUpdate):
+
+        data = payload.model_dump(exclude_unset=True, mode="json")
+
+        profile = service_locator.psychologist_service.update_profile_by_id(
+            db=self.db,
+            profile_id=id,
+            data=data,
+        )
+        if not profile:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        return profile
 
 
 @cbv(router)
