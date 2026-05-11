@@ -80,8 +80,7 @@ class PsychologistProfileUpdate(BaseSchema):
             raise ValueError("default_session_duration must be greater than 0")
         return value
 
-    # model_config = {"from_attributes": True,
-    #                 "use_enum_values": True}
+    model_config = {"use_enum_values": True, "validate_default": True}
 
 
 class PsychologistRegisterCreate(BaseSchema):
@@ -104,6 +103,8 @@ class PsychologistRegisterCreate(BaseSchema):
     is_profile_public: bool = True
     accepting_new_clients: bool = True
     visible_profile_fields: Optional[VisibleProfileFields] = None
+
+    model_config = {"use_enum_values": True, "validate_default": True}
 
 
 class InviteCreate(BaseSchema):
@@ -136,6 +137,8 @@ class AcceptInvitePayload(BaseSchema):
     is_profile_public: bool = True
     accepting_new_clients: bool = True
     visible_profile_fields: Optional[VisibleProfileFields] = None
+
+    model_config = {"use_enum_values": True, "validate_default": True}
 
 
 class BookingCreate(BaseSchema):
