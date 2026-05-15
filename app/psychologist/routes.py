@@ -23,13 +23,14 @@ from app.psychologist.schemas import (
     AvailabilityScheduleCreate
 
 )
-from app.psychologist.models import Booking
+from app.psychologist.models import Booking, SessionType
 from app.accounts.schemas import UserResponse
 from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
 from app.accounts.models import User
 from app.settings import FRONTEND_URL
 from app.psychologist.models import PsychologistProfile, AvailabilitySchedule
+from app.admin_panel.schemas import SessionTypeResponse
 router = APIRouter(prefix="/psychologist", tags=["psychologist"])
 
 
@@ -183,6 +184,10 @@ class PsychologistView:
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         return booking
+
+    @router.get("/session-types", response_model=List[SessionTypeResponse])
+    def list_session_types(self):
+        return self.db.query(SessionType).order_by(SessionType.created_at.desc()).all()
 
     @router.get("/{id}", response_model=PsychologistProfileResponse,
                 dependencies=[Depends(get_current_active_user)])

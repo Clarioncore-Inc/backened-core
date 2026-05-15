@@ -1,4 +1,6 @@
 from typing import Any, Dict, Optional
+from uuid import UUID
+from datetime import datetime
 from app.core.schema import BaseSchema
 
 
@@ -33,4 +35,40 @@ class SettingsUpdateRequest(BaseSchema):
     default_currency: Optional[str] = None
     platform_fee_rate: Optional[float] = None
     extra: Optional[Dict[str, Any]] = None
+
+
+class SessionTypeCreate(BaseSchema):
+    name: str
+    price: float
+    description: Optional[str] = None
+
+
+class SessionTypeUpdate(BaseSchema):
+    name: Optional[str] = None
+    price: Optional[float] = None
+    description: Optional[str] = None
+
+
+class SessionTypeResponse(BaseSchema):
+    id: UUID
+    name: str
+    price: float
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class MeetingConfigUpsert(BaseSchema):
+    name: str
+    link: str
+    password: Optional[str] = None
+
+
+class MeetingConfigResponse(BaseSchema):
+    id: UUID
+    name: str
+    link: str
+    password: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 

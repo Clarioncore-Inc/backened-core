@@ -6,4 +6,4 @@ from app.enrollments.models import Enrollment  # noqa
 from app.progress.models import LessonProgress  # noqa
 from app.payments.models import Payment, Payout  # noqa
 from app.reviews.models import Review           # noqa
-from app.psychologist.models import PsychologistProfile, Booking, PsychologistInvite  # noqa
+from app.psychologist.models import PsychologistProfile, Booking, PsychologistInvite, SessionType, MeetingConfig  # noqa

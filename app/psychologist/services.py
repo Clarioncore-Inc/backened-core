@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.psychologist.models import Booking, BookingStatus, PsychologistInvite, PsychologistProfile
+from app.psychologist.models import Booking, BookingStatus, MeetingConfig, PsychologistInvite, PsychologistProfile
 from app.accounts.models import User
 
 
@@ -44,6 +44,43 @@ class PsychologistService:
                 "• Review the update on your booking page.\n"
                 "• Book another available time slot that works for you.\n"
                 "• Contact support if you need assistance finding a new session.\n\n"
+                "Warm regards,\n"
+                "CerebroLearn Care Team"
+            )
+        )
+
+    def _send_booking_confirmation_slack_message(self, booking: Booking, db: Session) -> None:
+        from app.core.dependency_injection import service_locator
+
+        student_name = booking.student.full_name if booking.student else "Client"
+        student_email = booking.student.email if booking.student else "Unknown email"
+        psychologist_name = (
+            booking.psychologist.full_name if booking.psychologist else "Assigned Psychologist"
+        )
+        session_time = self._format_booking_datetime(booking)
+
+        # Fetch the global meeting config (may not exist yet)
+        meeting_config = db.query(MeetingConfig).first()
+        if meeting_config:
+            meeting_block = (
+                f"\n*Meeting Details:*\n"
+                f"• Platform: {meeting_config.name}\n"
+                f"• Link: {meeting_config.link}\n"
+                + (f"• Password: {meeting_config.password}\n" if meeting_config.password else "")
+            )
+        else:
+            meeting_block = "\nThe meeting link will be shared with you shortly.\n"
+
+        service_locator.core_service.send_slack_message(
+            message=(
+                "*Subject:* Booking Confirmed – Consultation Scheduled\n"
+                f"*To:* {student_name} <{student_email}>\n"
+                f"*From:* CerebroLearn Care Team on behalf of {psychologist_name}\n\n"
+                f"Dear {student_name},\n\n"
+                f"Great news! Your consultation with {psychologist_name} has been *confirmed* for {session_time}."
+                f"{meeting_block}\n"
+                "Please join the meeting a few minutes early. If you have any questions, "
+                "feel free to reach out to our support team.\n\n"
                 "Warm regards,\n"
                 "CerebroLearn Care Team"
             )
@@ -313,6 +350,9 @@ class PsychologistService:
 
         if next_status == BookingStatus.CANCELLED.value and previous_status != BookingStatus.CANCELLED.value:
             self._send_booking_rejection_slack_message(booking)
+
+        if next_status == BookingStatus.CONFIRMED.value and previous_status != BookingStatus.CONFIRMED.value:
+            self._send_booking_confirmation_slack_message(booking, db)
 
         return booking
 

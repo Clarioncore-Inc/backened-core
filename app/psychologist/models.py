@@ -138,3 +138,25 @@ class AvailabilitySchedule(BaseModel):
         "from_attributes": True,
         "use_enum_values": True
     }
+
+
+class MeetingConfig(BaseModel):
+    """Global meeting configuration — always one row (upsert pattern)."""
+    __tablename__ = "meeting_config"
+
+    name = Column(String, nullable=False)          # e.g. "Zoom", "Google Meet"
+    link = Column(String, nullable=False)          # the meeting URL
+    password = Column(String, nullable=True)       # optional password / passcode
+
+    model_config = {
+        "from_attributes": True,
+        "use_enum_values": True
+    }
+
+
+class SessionType(BaseModel):
+    __tablename__ = "session_types"
+
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    price = Column(Numeric, nullable=False)

@@ -223,6 +223,20 @@ class PsychologistInviteAdmin(ModelView, model=models.PsychologistInvite):
     can_delete = False
 
 
+class SessionTypeAdmin(ModelView, model=models.SessionType):
+    name = "Session Type"
+    name_plural = "Session Types"
+    icon = "fa-solid fa-tags"
+    column_list = [models.SessionType.id, models.SessionType.name,
+                   models.SessionType.price, models.SessionType.description,
+                   models.SessionType.created_at]
+    column_searchable_list = [models.SessionType.name]
+    column_sortable_list = [models.SessionType.name, models.SessionType.price,
+                            models.SessionType.created_at]
+    form_columns = [models.SessionType.name, models.SessionType.price,
+                    models.SessionType.description]
+
+
 # ── Factory ────────────────────────────────────────────────────────────────────
 def create_admin(app) -> Admin:
     authentication_backend = AdminAuth(secret_key=ADMIN_SECRET_KEY)
@@ -237,7 +251,7 @@ def create_admin(app) -> Admin:
         UserAdmin, CourseAdmin, SectionAdmin, LessonAdmin,
         EnrollmentAdmin, PaymentAdmin, PayoutAdmin, ReviewAdmin,
         LessonProgressAdmin, BookingAdmin, PsychologistProfileAdmin,
-        PsychologistInviteAdmin,
+        PsychologistInviteAdmin, SessionTypeAdmin,
     ]:
         admin.add_view(view)
     return admin
