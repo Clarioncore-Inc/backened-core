@@ -87,7 +87,6 @@ class PsychologistRegisterCreate(BaseSchema):
     email: EmailStr
     full_name: str
     password: str
-    hourly_rate: float
     bio: Optional[str] = None
     license_number: Optional[str] = None
     years_of_experience: Optional[str] = None

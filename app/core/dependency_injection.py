@@ -6,6 +6,8 @@ from app.payments.services import PaymentService
 from app.psychologist.services import PsychologistService
 from app.reviews.services import ReviewService
 from app.progress.services import ProgressService
+from app.discussions.services import DiscussionService
+from app.learner.services import LearnerService
 from app.admin_panel.services import AdminService
 from app.lessons.services import LessonService
 from app.core.services import CoreService
@@ -21,6 +23,8 @@ class SERVICE_NAMES:
     PsychologistService = "psychologist_service"
     ReviewService = "review_service"
     ProgressService = "progress_service"
+    DiscussionService = "discussion_service"
+    LearnerService = "learner_service"
     AdminService = "admin_service"
     LessonService = "lesson_service"
     CoreService = "core_service"
@@ -36,6 +40,8 @@ class ServiceLocator:
     psychologist_service: PsychologistService
     review_service: ReviewService
     progress_service: ProgressService
+    discussion_service: DiscussionService
+    learner_service: LearnerService
     admin_service: AdminService
     lesson_service: LessonService
     core_service: CoreService
@@ -69,6 +75,8 @@ service_locator.register(
     SERVICE_NAMES.PsychologistService, PsychologistService())
 service_locator.register(SERVICE_NAMES.ReviewService, ReviewService())
 service_locator.register(SERVICE_NAMES.ProgressService, ProgressService())
+service_locator.register(SERVICE_NAMES.DiscussionService, DiscussionService())
+service_locator.register(SERVICE_NAMES.LearnerService, LearnerService())
 service_locator.register(SERVICE_NAMES.AdminService, AdminService())
 service_locator.register(SERVICE_NAMES.LessonService, LessonService())
 service_locator.register(SERVICE_NAMES.CoreService, CoreService())

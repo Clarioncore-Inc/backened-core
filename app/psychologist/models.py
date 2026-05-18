@@ -35,7 +35,7 @@ class PsychologistProfile(BaseModel):
 
     user_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "users.id"), unique=True, nullable=False)
-    hourly_rate = Column(Numeric, nullable=False)
+    hourly_rate = Column(Numeric, nullable=True)
     bio = Column(Text, nullable=True)
     is_approved = Column(Boolean, default=False)
     license_number = Column(String, nullable=True)

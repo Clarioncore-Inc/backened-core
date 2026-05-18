@@ -68,6 +68,23 @@ class CourseHistoryResponse(BaseResponseSchema):
     changes: dict
 
 
+class CourseActivityUpsert(BaseSchema):
+    course_id: UUID
+    lesson_id: UUID
+    lesson_index: Optional[int] = Field(default=None, ge=0)
+    progress: float = Field(ge=0, le=100)
+    last_accessed_at: Optional[datetime] = None
+
+
+class CourseActivityResponse(BaseResponseSchema):
+    user_id: UUID
+    course_id: UUID
+    lesson_id: UUID
+    lesson_index: Optional[int] = None
+    progress: float
+    last_accessed_at: datetime
+
+
 class CourseCreate(BaseSchema):
     title: str
     description: str

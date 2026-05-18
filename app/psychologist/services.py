@@ -160,7 +160,6 @@ class PsychologistService:
 
         profile = PsychologistProfile(
             user_id=user.id,
-            hourly_rate=data["hourly_rate"],
             bio=data.get("bio"),
             license_number=data.get("license_number"),
             years_of_experience=data.get("years_of_experience"),
@@ -192,7 +191,7 @@ class PsychologistService:
         db.add(invite)
         db.commit()
         db.refresh(invite)
-        accept_url = f"{frontend_url}/psychologist/accept-invite?token={token}"
+        accept_url = f"{frontend_url}/?join=psychologist&token={token}"
         from app.core.dependency_injection import service_locator
         service_locator.core_service.send_slack_message(
             message=(

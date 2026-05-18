@@ -1,5 +1,6 @@
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, Integer, Numeric, String, Text
+    Boolean, Column, DateTime, Float, Integer, Numeric, String, Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, ENUM, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
@@ -62,6 +63,24 @@ class CourseHistory(BaseModel):
 
     course = relationship("Course", back_populates="history")
     changed_by = relationship("User")
+
+
+class CourseActivity(BaseModel):
+    __tablename__ = "course_activity"
+    __table_args__ = (
+        UniqueConstraint("user_id", "course_id", name="uq_course_activity_user_course"),
+    )
+
+    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    course_id = Column(PG_UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False)
+    lesson_id = Column(PG_UUID(as_uuid=True), ForeignKey("lessons.id"), nullable=False)
+    lesson_index = Column(Integer, nullable=True)
+    progress = Column(Float, nullable=False, default=0)
+    last_accessed_at = Column(DateTime(timezone=True), nullable=False)
+
+    user = relationship("User")
+    course = relationship("Course")
+    lesson = relationship("Lesson")
 
 
 class Course(BaseModel):

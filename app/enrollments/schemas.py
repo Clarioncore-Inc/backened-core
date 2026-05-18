@@ -2,6 +2,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from app.core.schema import BaseSchema
+from app.courses.schemas import CourseResponse
 
 
 class EnrollmentCreate(BaseSchema):
@@ -11,7 +12,7 @@ class EnrollmentCreate(BaseSchema):
 class EnrollmentResponse(BaseSchema):
     id: UUID
     user_id: UUID
-    course_id: UUID
+    course: CourseResponse
     status: str
     progress: float
     enrolled_at: Optional[datetime] = None

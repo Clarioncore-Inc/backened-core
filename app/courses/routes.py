@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,11 +6,13 @@ from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from fastapi_utils.cbv import cbv
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, and_
+from sqlalchemy import or_
 from app.core.dependency_injection import service_locator
-from app.courses.models import Course, CourseCollaborator, CourseComment, CourseHistory
-from app.lessons.models import Section
+from app.courses.models import Course, CourseActivity, CourseCollaborator, CourseComment, CourseHistory
+from app.lessons.models import Lesson, Section
 from app.courses.schemas import (
+    CourseActivityResponse,
+    CourseActivityUpsert,
     CourseBulkCreate,
     CourseBulkUpdate,
     CourseCreate,
@@ -51,8 +54,7 @@ class CoursesView:
                 .outerjoin(CourseCollaborator, CourseCollaborator.course_id == Course.id)
                 .filter(
                     or_(
-                        and_(Course.is_public.is_(True),
-                             Course.status == "published"),
+                        Course.status == "published",
                         CourseCollaborator.user_id == self.current_user.id,
                     )
                 )
@@ -66,6 +68,67 @@ class CoursesView:
             query = query.filter(Course.title.ilike(f"%{search}%"))
 
         return paginate(self.db, query)
+
+    @router.get("/activity", response_model=CourseActivityResponse)
+    def get_course_activity(self, course_id: UUID):
+        activity = (
+            self.db.query(CourseActivity)
+            .filter(
+                CourseActivity.user_id == self.current_user.id,
+                CourseActivity.course_id == course_id,
+            )
+            .first()
+        )
+        if not activity:
+            raise HTTPException(status_code=404, detail="Course activity not found")
+        return activity
+
+    @router.post("/activity", response_model=CourseActivityResponse)
+    def upsert_course_activity(self, payload: CourseActivityUpsert):
+        course = self.db.query(Course).filter(Course.id == payload.course_id).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        lesson = (
+            self.db.query(Lesson)
+            .join(Section, Lesson.section_id == Section.id)
+            .filter(
+                Lesson.id == payload.lesson_id,
+                Section.course_id == payload.course_id,
+            )
+            .first()
+        )
+        if not lesson:
+            raise HTTPException(
+                status_code=400,
+                detail="Lesson does not belong to the provided course",
+            )
+
+        activity = (
+            self.db.query(CourseActivity)
+            .filter(
+                CourseActivity.user_id == self.current_user.id,
+                CourseActivity.course_id == payload.course_id,
+            )
+            .first()
+        )
+
+        data = payload.model_dump()
+        data["last_accessed_at"] = data.get("last_accessed_at") or datetime.now(timezone.utc)
+
+        if activity:
+            activity.course_id = data["course_id"]
+            activity.lesson_id = data["lesson_id"]
+            activity.lesson_index = data["lesson_index"]
+            activity.progress = data["progress"]
+            activity.last_accessed_at = data["last_accessed_at"]
+        else:
+            activity = CourseActivity(user_id=self.current_user.id, **data)
+            self.db.add(activity)
+
+        self.db.commit()
+        self.db.refresh(activity)
+        return activity
 
     @router.post("/bulk", response_model=CourseWithSections, status_code=201)
     def create_course_bulk(
