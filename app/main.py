@@ -39,6 +39,7 @@ from app.admin_panel.routes import router as admin_router
 from app.creator.routes import router as creator_router
 from app.gamification.routes import router as leaderboard_router
 from app.attachment.routes import router as attachments_router
+from app.notes.routes import router as notes_router
 from .ping_render import lifespan
 
 
@@ -94,6 +95,7 @@ app.include_router(admin_router, prefix=API_PREFIX)
 app.include_router(creator_router, prefix=API_PREFIX)
 app.include_router(leaderboard_router, prefix=API_PREFIX)
 app.include_router(attachments_router, prefix=API_PREFIX)
+app.include_router(notes_router, prefix=API_PREFIX)
 
 # ── Pagination ────────────────────────────────────────────────────────────────
 add_pagination(app)

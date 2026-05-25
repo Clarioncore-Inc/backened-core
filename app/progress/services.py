@@ -3,13 +3,22 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from app.progress.models import LessonProgress
 from app.accounts.models import User
+from app.enrollments.services import EnrollmentService
+from app.lessons.models import Lesson, Section
 
 XP_PER_COMPLETION = 10
+enrollment_service = EnrollmentService()
 
 
 class ProgressService:
     def save_progress(self, db: Session, user_id, data: dict) -> LessonProgress:
         lesson_id = data["lesson_id"]
+        lesson = (
+            db.query(Lesson)
+            .join(Section, Lesson.section_id == Section.id)
+            .filter(Lesson.id == lesson_id)
+            .first()
+        )
         record = (
             db.query(LessonProgress)
             .filter(
@@ -38,6 +47,18 @@ class ProgressService:
             user = db.query(User).filter(User.id == user_id).first()
             if user:
                 user.xp = (user.xp or 0) + XP_PER_COMPLETION
+        elif data.get("percent", 0) < 100:
+            record.completed = False
+
+        db.flush()
+
+        if lesson:
+            enrollment_service.sync_progress(
+                db=db,
+                user_id=user_id,
+                course_id=lesson.section.course_id,
+                last_accessed=record.last_seen_at,
+            )
 
         db.commit()
         db.refresh(record)

@@ -26,6 +26,7 @@ from app.lessons.schemas.lesson_contents import (
     VideoLessonUpsert,
 )
 from app.lessons.models.lessons import LessonKind, LessonSettings
+from app.lessons.models.lessons import BookmarkObjectType
 
 
 class SectionCreate(BaseSchema):
@@ -150,8 +151,18 @@ class CommentResponse(BaseSchema):
     updated_at: datetime
 
 
+class BookmarkCourseResponse(BaseSchema):
+    id: UUID
+    title: str
+    category: str
+    subcategory: Optional[str] = None
+
+
 class BookmarkResponse(BaseSchema):
     id: UUID
     user_id: UUID
-    lesson_id: UUID
+    object_id: UUID
+    object_type: BookmarkObjectType
+    lesson: Optional[LessonResponse] = None
+    course: Optional[BookmarkCourseResponse] = None
     created_at: datetime

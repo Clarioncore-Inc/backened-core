@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from fastapi_utils.cbv import cbv
@@ -10,6 +10,8 @@ from sqlalchemy import or_
 from app.core.dependency_injection import service_locator
 from app.courses.models import Course, CourseActivity, CourseCollaborator, CourseComment, CourseHistory
 from app.lessons.models import Lesson, Section
+from app.lessons.models import BookmarkObjectType
+from app.lessons.schemas import BookmarkResponse
 from app.courses.schemas import (
     CourseActivityResponse,
     CourseActivityUpsert,
@@ -264,6 +266,26 @@ class CoursesView:
         if not deleted:
             raise HTTPException(
                 status_code=404, detail="Course comment not found")
+
+    @router.post("/{id}/bookmark", response_model=BookmarkResponse)
+    def bookmark_course(self, id: UUID):
+        return service_locator.lesson_service.add_bookmark(
+            db=self.db,
+            user_id=self.current_user.id,
+            object_id=id,
+            object_type=BookmarkObjectType.COURSE,
+        )
+
+    @router.delete("/{id}/bookmark", status_code=status.HTTP_204_NO_CONTENT)
+    def unbookmark_course(self, id: UUID):
+        deleted = service_locator.lesson_service.remove_bookmark(
+            db=self.db,
+            user_id=self.current_user.id,
+            object_id=id,
+            object_type=BookmarkObjectType.COURSE,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Bookmark not found")
 
     @router.post("/{id}/comments/", response_model=CourseCommentResponse, status_code=201)
     def create_course_comment(self, id: UUID, payload: CourseCommentCreate):

@@ -1,12 +1,13 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_utils.cbv import cbv
 from sqlalchemy.orm import Session
 
 from app.core.dependency_injection import service_locator
 from app.lessons.models import (
+    BookmarkObjectType,
     CalloutLesson,
     CodeLesson,
     HeadingLesson,
@@ -204,11 +205,25 @@ class LessonsView:
     @router.post("/{id}/bookmark", response_model=BookmarkResponse)
     def bookmark_lesson(self, id: UUID, current_user: User = Depends(get_current_active_user)):
         return service_locator.lesson_service.add_bookmark(
-            db=self.db, user_id=current_user.id, lesson_id=id
+            db=self.db,
+            user_id=current_user.id,
+            object_id=id,
+            object_type=BookmarkObjectType.LESSON,
         )
 
+    @router.delete("/{id}/bookmark", status_code=status.HTTP_204_NO_CONTENT)
+    def unbookmark_lesson(self, id: UUID, current_user: User = Depends(get_current_active_user)):
+        deleted = service_locator.lesson_service.remove_bookmark(
+            db=self.db,
+            user_id=current_user.id,
+            object_id=id,
+            object_type=BookmarkObjectType.LESSON,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Bookmark not found")
 
-bookmarks_router = APIRouter(prefix="/bookmarks", tags=["lessons"])
+
+bookmarks_router = APIRouter(prefix="/bookmarks", tags=["bookmarks"])
 
 
 @cbv(bookmarks_router)

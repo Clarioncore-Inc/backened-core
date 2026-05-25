@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID as PG_UUID
 from enum import Enum, StrEnum
 from sqlalchemy.orm import relationship
@@ -23,6 +23,17 @@ class LessonKind(StrEnum):
 LessonKindEnum = ENUM(
     *[e.value for e in LessonKind],
     name="lesson_kind_enum", create_type=True
+)
+
+
+class BookmarkObjectType(StrEnum):
+    LESSON = "lesson"
+    COURSE = "course"
+
+
+BookmarkObjectTypeEnum = ENUM(
+    *[e.value for e in BookmarkObjectType],
+    name="bookmark_object_type_enum", create_type=True
 )
 
 
@@ -86,8 +97,6 @@ class Lesson(LessonSettings):
         "LessonProgress", back_populates="lesson", cascade="all, delete-orphan")
     likes = relationship("LessonLike", back_populates="lesson",
                          cascade="all, delete-orphan")
-    bookmarks = relationship(
-        "LessonBookmark", back_populates="lesson", cascade="all, delete-orphan")
     comments = relationship(
         "LessonComment", back_populates="lesson", cascade="all, delete-orphan")
 
@@ -122,13 +131,24 @@ class LessonLike(BaseModel):
     lesson = relationship("Lesson", back_populates="likes")
 
 
-class LessonBookmark(BaseModel):
+class Bookmark(BaseModel):
     __tablename__ = "lesson_bookmarks"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "object_id",
+            "object_type",
+            name="uq_lesson_bookmarks_user_object",
+        ),
+    )
+
     user_id = Column(PG_UUID(as_uuid=True),
                      ForeignKey("users.id"), nullable=False)
-    lesson_id = Column(PG_UUID(as_uuid=True),
-                       ForeignKey("lessons.id"), nullable=False)
-    lesson = relationship("Lesson", back_populates="bookmarks")
+    object_id = Column(PG_UUID(as_uuid=True), nullable=False)
+    object_type = Column(BookmarkObjectTypeEnum, nullable=False)
+
+
+LessonBookmark = Bookmark
 
 
 class LessonComment(BaseModel):

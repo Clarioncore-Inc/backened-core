@@ -9,3 +9,4 @@ from app.reviews.models import Review, ReviewThread, ReviewThreadReaction  # noq
 from app.discussions.models import DiscussionPost, DiscussionReply, DiscussionLike  # noqa
 from app.learner.models import LearningGoal, LearnerProfile, LearnerDailyActivity  # noqa
 from app.psychologist.models import PsychologistProfile, Booking, PsychologistInvite, SessionType, MeetingConfig  # noqa
+from app.notes.models import Note  # noqa

@@ -3,7 +3,10 @@ from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from app.attachment.models import Attachment
+from app.courses.models import Course
 from app.lessons.models import (
+    Bookmark,
+    BookmarkObjectType,
     CalloutLesson,
     CodeLesson,
     HeadingLesson,
@@ -12,7 +15,6 @@ from app.lessons.models import (
     InteractiveLesson,
     # InteractiveStep,
     Lesson,
-    LessonBookmark,
     LessonComment,
     LessonLike,
     ProblemLesson,
@@ -124,8 +126,14 @@ class LessonService:
             .all()
         )
 
-    def get_bookmarks(self, db: Session, user_id) -> List[LessonBookmark]:
-        return db.query(LessonBookmark).filter(LessonBookmark.user_id == user_id).all()
+    def get_bookmarks(self, db: Session, user_id) -> List[dict[str, Any]]:
+        bookmarks = (
+            db.query(Bookmark)
+            .filter(Bookmark.user_id == user_id)
+            .order_by(Bookmark.created_at.desc())
+            .all()
+        )
+        return [item for bookmark in bookmarks if (item := self._serialize_bookmark(db, bookmark))]
 
     def add_like(self, db: Session, user_id, lesson_id) -> Lesson:
         existing = (
@@ -160,19 +168,55 @@ class LessonService:
             return lesson
         return None
 
-    def add_bookmark(self, db: Session, user_id, lesson_id) -> LessonBookmark:
+    def add_bookmark(self, db: Session, user_id, object_id, object_type) -> dict[str, Any]:
+        bookmark_type = self._normalize_bookmark_type(object_type)
+        self._ensure_bookmark_target_exists(db, object_id=object_id, object_type=bookmark_type)
+
         existing = (
-            db.query(LessonBookmark)
-            .filter(LessonBookmark.user_id == user_id, LessonBookmark.lesson_id == lesson_id)
+            db.query(Bookmark)
+            .filter(
+                Bookmark.user_id == user_id,
+                Bookmark.object_id == object_id,
+                Bookmark.object_type == bookmark_type.value,
+            )
             .first()
         )
-        if not existing:
-            bookmark = LessonBookmark(user_id=user_id, lesson_id=lesson_id)
-            db.add(bookmark)
-            db.commit()
-            db.refresh(bookmark)
-            return bookmark
-        return existing
+        if existing:
+            serialized = self._serialize_bookmark(db, existing)
+            if serialized:
+                return serialized
+
+        bookmark = Bookmark(
+            user_id=user_id,
+            object_id=object_id,
+            object_type=bookmark_type.value,
+        )
+        db.add(bookmark)
+        db.commit()
+        db.refresh(bookmark)
+
+        serialized = self._serialize_bookmark(db, bookmark)
+        if not serialized:
+            raise HTTPException(status_code=404, detail="Bookmark target not found")
+        return serialized
+
+    def remove_bookmark(self, db: Session, user_id, object_id, object_type) -> bool:
+        bookmark_type = self._normalize_bookmark_type(object_type)
+        bookmark = (
+            db.query(Bookmark)
+            .filter(
+                Bookmark.user_id == user_id,
+                Bookmark.object_id == object_id,
+                Bookmark.object_type == bookmark_type.value,
+            )
+            .first()
+        )
+        if not bookmark:
+            return False
+
+        db.delete(bookmark)
+        db.commit()
+        return True
 
     def add_comment(self, db: Session, user_id, data: dict) -> LessonComment:
         comment = LessonComment(user_id=user_id, **data)
@@ -212,6 +256,63 @@ class LessonService:
         for field_name in self.CONTENT_MODELS:
             payload[field_name] = data.pop(field_name, None)
         return payload
+
+    def _normalize_bookmark_type(self, object_type) -> BookmarkObjectType:
+        if isinstance(object_type, BookmarkObjectType):
+            return object_type
+
+        try:
+            return BookmarkObjectType(str(object_type))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Unsupported bookmark object type") from exc
+
+    def _get_bookmark_lesson(self, db: Session, lesson_id) -> Optional[Lesson]:
+        return (
+            db.query(Lesson)
+            .options(joinedload(Lesson.section).joinedload(Section.course))
+            .filter(Lesson.id == lesson_id)
+            .first()
+        )
+
+    def _get_bookmark_course(self, db: Session, course_id) -> Optional[Course]:
+        return db.query(Course).filter(Course.id == course_id).first()
+
+    def _ensure_bookmark_target_exists(self, db: Session, object_id, object_type: BookmarkObjectType) -> None:
+        if object_type == BookmarkObjectType.LESSON:
+            target = self._get_bookmark_lesson(db, object_id)
+            detail = "Lesson not found"
+        else:
+            target = self._get_bookmark_course(db, object_id)
+            detail = "Course not found"
+
+        if not target:
+            raise HTTPException(status_code=404, detail=detail)
+
+    def _serialize_bookmark(self, db: Session, bookmark: Bookmark) -> Optional[dict[str, Any]]:
+        bookmark_type = self._normalize_bookmark_type(bookmark.object_type)
+
+        lesson = None
+        course = None
+
+        if bookmark_type == BookmarkObjectType.LESSON:
+            lesson = self._get_bookmark_lesson(db, bookmark.object_id)
+            if not lesson:
+                return None
+            course = lesson.section.course if lesson.section else None
+        else:
+            course = self._get_bookmark_course(db, bookmark.object_id)
+            if not course:
+                return None
+
+        return {
+            "id": bookmark.id,
+            "user_id": bookmark.user_id,
+            "object_id": bookmark.object_id,
+            "object_type": bookmark_type,
+            "lesson": lesson,
+            "course": course,
+            "created_at": bookmark.created_at,
+        }
 
     def _upsert_content_tree(
         self,

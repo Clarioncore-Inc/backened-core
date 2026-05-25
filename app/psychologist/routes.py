@@ -139,10 +139,22 @@ class PsychologistView:
         )
 
     @router.get("/bookings", response_model=List[BookingResponse])
-    def list_bookings(self):
-        return service_locator.psychologist_service.get_user_bookings(
-            db=self.db, user_id=self.current_user.id
+    def list_bookings(self, user_id: UUID):
+        if self.current_user.role != "admin" and self.current_user.id != user_id:
+            raise HTTPException(status_code=403, detail="Not allowed to view these bookings")
+
+        student_bookings = service_locator.general_service.filter_data(
+            db=self.db,
+            model=Booking,
+            filters={"student_id": user_id},
         )
+        psychologist_bookings = service_locator.general_service.filter_data(
+            db=self.db,
+            model=Booking,
+            filters={"psychologist_id": user_id},
+        )
+
+        return list({booking.id: booking for booking in [*student_bookings, *psychologist_bookings]}.values())
 
     @router.get("/bookings/{id}/notes", response_model=BookingNotesResponse)
     def get_booking_notes(self, id: UUID):

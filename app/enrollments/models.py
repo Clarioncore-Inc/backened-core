@@ -25,3 +25,7 @@ class Enrollment(BaseModel):
     user = relationship("User", back_populates="enrollments")
     course = relationship("Course", back_populates="enrollments")
 
+    @property
+    def completed(self) -> bool:
+        return self.status == "completed"
+

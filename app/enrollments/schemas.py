@@ -14,6 +14,7 @@ class EnrollmentResponse(BaseSchema):
     user_id: UUID
     course: CourseResponse
     status: str
+    completed: bool = False
     progress: float
     enrolled_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
