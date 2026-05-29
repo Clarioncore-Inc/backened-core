@@ -141,6 +141,30 @@ class PaymentAdmin(ModelView, model=models.Payment):
     can_delete = False  # Keep audit trail
 
 
+class AppSettingsAdmin(ModelView, model=models.AppSettings):
+    name = "App Setting"
+    name_plural = "App Settings"
+    icon = "fa-solid fa-sliders"
+    column_list = [
+        models.AppSettings.id,
+        models.AppSettings.app_name,
+        models.AppSettings.email,
+        models.AppSettings.contacts,
+        models.AppSettings.iq_test_price,
+        models.AppSettings.created_at,
+    ]
+    column_searchable_list = [models.AppSettings.app_name, models.AppSettings.email]
+    column_sortable_list = [models.AppSettings.app_name, models.AppSettings.iq_test_price]
+    form_columns = [
+        models.AppSettings.app_name,
+        models.AppSettings.logo,
+        models.AppSettings.contacts,
+        models.AppSettings.email,
+        models.AppSettings.iq_test_price,
+    ]
+    can_delete = False
+
+
 class PayoutAdmin(ModelView, model=models.Payout):
     name = "Payout"
     name_plural = "Payouts"
@@ -249,7 +273,7 @@ def create_admin(app) -> Admin:
     )
     for view in [
         UserAdmin, CourseAdmin, SectionAdmin, LessonAdmin,
-        EnrollmentAdmin, PaymentAdmin, PayoutAdmin, ReviewAdmin,
+        EnrollmentAdmin, PaymentAdmin, AppSettingsAdmin, PayoutAdmin, ReviewAdmin,
         LessonProgressAdmin, BookingAdmin, PsychologistProfileAdmin,
         PsychologistInviteAdmin, SessionTypeAdmin,
     ]:

@@ -1,8 +1,56 @@
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Type
+
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
+
+from app.general.models import AppSettings
+from app.settings import APP_NAME
+
+
+DEFAULT_APP_SETTINGS: Dict[str, Any] = {
+    "app_name": APP_NAME,
+    "logo": None,
+    "contacts": None,
+    "email": None,
+    "iq_test_price": Decimal("299.0"),
+}
 
 
 class GeneralService:
+    def app_settings_table_exists(self, db: Session) -> bool:
+        bind = db.get_bind()
+        if bind is None:
+            return False
+        return inspect(bind).has_table(AppSettings.__tablename__)
+
+    def get_app_settings(self, db: Session) -> AppSettings:
+        settings = db.query(AppSettings).order_by(AppSettings.created_at.asc()).first()
+        if settings:
+            return settings
+
+        settings = AppSettings(**DEFAULT_APP_SETTINGS)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+        return settings
+
+    def update_app_settings(self, db: Session, updates: Dict[str, Any]) -> AppSettings:
+        settings = self.get_app_settings(db=db)
+        for field, value in updates.items():
+            if value is None:
+                continue
+            if field == "iq_test_price":
+                value = Decimal(str(value))
+            setattr(settings, field, value)
+        db.commit()
+        db.refresh(settings)
+        return settings
+
+    def seed_app_settings(self, db: Session) -> Optional[AppSettings]:
+        if not self.app_settings_table_exists(db=db):
+            return None
+        return self.get_app_settings(db=db)
 
     def create(self, db: Session, data: Dict[str, Any], model: Type) -> Any:
         instance = model(**data)

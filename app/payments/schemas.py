@@ -8,6 +8,7 @@ class PaymentCreate(BaseSchema):
     amount: float
     currency: str = "USD"
     provider: str
+    user_id: UUID
     course_id: Optional[UUID] = None
     org_id: Optional[UUID] = None
 
@@ -15,6 +16,15 @@ class PaymentCreate(BaseSchema):
 class PaymentUpdate(BaseSchema):
     status: str
     provider_txn_id: Optional[str] = None
+
+
+class IQTestCheckoutConfirmRequest(BaseSchema):
+    session_id: str
+
+
+class IQTestCheckoutSessionResponse(BaseSchema):
+    checkout_url: str
+    session_id: str
 
 
 class PaymentResponse(BaseSchema):

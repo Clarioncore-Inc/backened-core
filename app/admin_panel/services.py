@@ -1,6 +1,8 @@
 from typing import Any, Dict, List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.accounts.models import User
 from app.courses.models import Course
 from app.enrollments.models import Enrollment
@@ -14,7 +16,6 @@ _platform_settings: Dict[str, Any] = {
     "default_currency": "USD",
     "platform_fee_rate": 0.20,
 }
-
 
 class AdminService:
     def get_all_users(self, db: Session) -> List[User]:

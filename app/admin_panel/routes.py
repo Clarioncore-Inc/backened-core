@@ -28,8 +28,14 @@ from app.admin_panel.schemas import (
 )
 from app.dependencies import get_db
 from app.authentication.utils import get_current_active_user
+from app.general.schemas import AppSettingsResponse, AppSettingsUpdateRequest
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/app-settings/public", response_model=AppSettingsResponse)
+def get_public_app_settings(db: Session = Depends(get_db)):
+    return service_locator.general_service.get_app_settings(db=db)
 
 
 def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
@@ -100,6 +106,17 @@ class AdminView:
     def update_settings(self, payload: SettingsUpdateRequest):
         return service_locator.admin_service.update_settings(
             updates=payload.model_dump(exclude_unset=True)
+        )
+
+    @router.get("/app-settings", response_model=AppSettingsResponse)
+    def get_app_settings(self):
+        return service_locator.general_service.get_app_settings(db=self.db)
+
+    @router.put("/app-settings", response_model=AppSettingsResponse)
+    def update_app_settings(self, payload: AppSettingsUpdateRequest):
+        return service_locator.general_service.update_app_settings(
+            db=self.db,
+            updates=payload.model_dump(exclude_unset=True),
         )
 
     # ── Session Types ──────────────────────────────────────────────────────────

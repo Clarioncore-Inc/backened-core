@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
+from app.core.dependency_injection import service_locator
+from app.database import SessionLocal
 from app.settings import API_BASE_URL
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +36,7 @@ async def lifespan(app: FastAPI):
     logging.info("🚀 LIFESPAN STARTED: Starting scheduler")
     scheduler.start()
     await asyncio.get_event_loop().run_in_executor(None, run_migrations)
+    await asyncio.get_event_loop().run_in_executor(None, seed_app_settings)
     yield
     logging.info("🛑 LIFESPAN ENDED: Stopping scheduler")
     scheduler.shutdown()
@@ -44,3 +47,17 @@ def run_migrations():
         return
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")
+
+
+def seed_app_settings():
+    db = SessionLocal()
+    try:
+        settings = service_locator.general_service.seed_app_settings(db=db)
+        if settings is None:
+            logging.warning(
+                "⚠️ Skipping AppSettings seed because the app_settings table does not exist yet"
+            )
+            return
+        logging.info("✅ App settings seeded")
+    finally:
+        db.close()

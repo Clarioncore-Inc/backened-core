@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.core.dependency_injection import service_locator
 from app.payments.schemas import (
+    IQTestCheckoutConfirmRequest,
+    IQTestCheckoutSessionResponse,
     PaymentCreate,
     PaymentResponse,
     PaymentUpdate,
@@ -42,6 +44,21 @@ class PaymentsView:
         if not payment:
             raise HTTPException(status_code=404, detail="Payment not found")
         return payment
+
+    @router.post("/iq-test/checkout-session", response_model=IQTestCheckoutSessionResponse)
+    def create_iq_test_checkout_session(self):
+        return service_locator.payment_service.create_iq_test_checkout_session(
+            db=self.db,
+            user_id=self.current_user.id,
+        )
+
+    @router.post("/iq-test/confirm", response_model=PaymentResponse)
+    def confirm_iq_test_checkout(self, payload: IQTestCheckoutConfirmRequest):
+        return service_locator.payment_service.confirm_iq_test_checkout_session(
+            db=self.db,
+            user_id=self.current_user.id,
+            session_id=payload.session_id,
+        )
 
 
 @cbv(payouts_router)
