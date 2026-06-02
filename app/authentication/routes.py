@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_utils.cbv import cbv
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from app.accounts.models import User
+from app.accounts.models import RoleEnum, User
 from app.authentication.schemas import (
     LoginRequest,
     OTPLoginRequest,
@@ -37,6 +39,12 @@ class AuthView:
                 detail="Email already registered",
             )
 
+        if payload.role not in RoleEnum.enums:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid role",
+            )
+
         user = User(
             email=payload.email,
             full_name=payload.full_name,
@@ -63,8 +71,16 @@ class AuthView:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Account suspended",
             )
+        is_first_login = user.last_login_at is None
+        user.last_login_at = datetime.now(timezone.utc)
+        self.db.commit()
+        self.db.refresh(user)
         token = create_access_token(subject=user.email)
-        return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+        return TokenResponse(
+            access_token=token,
+            user=UserResponse.model_validate(user),
+            is_first_login=is_first_login,
+        )
 
     @router.post("/login/otp", response_model=TokenResponse)
     def login_otp(self, payload: OTPLoginRequest):

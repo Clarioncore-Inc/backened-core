@@ -27,6 +27,7 @@ class TokenResponse(BaseSchema):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    is_first_login: bool
 
 
 class SignupResponse(BaseSchema):

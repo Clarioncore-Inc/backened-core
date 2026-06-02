@@ -1,10 +1,11 @@
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from app.core.models import BaseModel
 
 RoleEnum = ENUM(
     "learner",
+    "iq_user",
     "instructor",
     "creator",
     "org_admin",
@@ -33,6 +34,7 @@ class User(BaseModel):
     is_active = Column(Boolean, default=True)
     is_suspended = Column(Boolean, default=False)
     location = Column(String, nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     courses = relationship("Course", back_populates="creator",
