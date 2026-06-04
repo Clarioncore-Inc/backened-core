@@ -1,7 +1,7 @@
 from typing import List
 from uuid import UUID
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi_utils.cbv import cbv
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,7 @@ from app.psychologist.schemas import (
     BookingTransitionPayload,
     InviteCreate,
     InviteResponse,
-    PsychologistProfileResponse, 
+    PsychologistProfileResponse,
     PsychologistProfileUpdate,
     PsychologistRegisterCreate,
     PsychologistProfileStatus,
@@ -141,7 +141,8 @@ class PsychologistView:
     @router.get("/bookings", response_model=List[BookingResponse])
     def list_bookings(self, user_id: UUID):
         if self.current_user.role != "admin" and self.current_user.id != user_id:
-            raise HTTPException(status_code=403, detail="Not allowed to view these bookings")
+            raise HTTPException(
+                status_code=403, detail="Not allowed to view these bookings")
 
         student_bookings = service_locator.general_service.filter_data(
             db=self.db,
@@ -169,6 +170,21 @@ class PsychologistView:
             **(booking.session_notes or {}),
             updated_at=booking.session_notes_updated_at,
         )
+
+    @router.get("/bookings/availability")
+    def check_availability(
+        self,
+        booking_date: date = Query(..., description="e.g. 2025-01-30"),
+        booking_time: str = Query(..., description="e.g. 14:00"),
+        booking_type: str = Query(default="standard"),
+    ):
+        psychologist = service_locator.psychologist_service.get_available_psychologist_for_booking(
+            db=self.db,
+            booking_date=booking_date,
+            booking_time=booking_time,
+            booking_type=booking_type,
+        )
+        return {"available": psychologist is not None}
 
     @router.put("/bookings/{id}/notes", response_model=BookingNotesResponse)
     def update_booking_notes(self, id: UUID, payload: BookingNotesPayload):

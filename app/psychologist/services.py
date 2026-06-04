@@ -524,3 +524,88 @@ class PsychologistService:
         # Step 5: All are occupied — return least loaded
         scored.sort(key=lambda x: x[1])
         return scored[0][0]
+
+    def check_psychologist_availability(
+        self,
+        db: Session,
+        psychologist_id: UUID,
+        booking_date: date,
+        booking_time: str,  # e.g. "14:00"
+    ) -> dict:
+        """
+        Checks if a specific psychologist is available at the given date and time.
+        Returns a dict with available: bool and a reason if not.
+        """
+
+        # Step 1: Get the profile
+        profile = self.get_profile(db, user_id=psychologist_id)
+        if not profile:
+            return {"available": False, "reason": "Psychologist not found."}
+
+        if not profile.is_approved:
+            return {"available": False, "reason": "Psychologist is not approved."}
+
+        if not profile.accepting_new_clients:
+            return {"available": False, "reason": "Psychologist is not accepting new clients."}
+
+        # Step 2: Check availability schedule
+        day_name = booking_date.strftime("%A").lower()
+
+        schedule_row = (
+            db.query(AvailabilitySchedule)
+            .filter(AvailabilitySchedule.psychologist_id == psychologist_id)
+            .first()
+        )
+
+        if not schedule_row or not schedule_row.schedule:
+            return {"available": False, "reason": "Psychologist has no availability schedule set."}
+
+        day_schedule = schedule_row.schedule.get(day_name)
+
+        if not day_schedule or not day_schedule.get("enabled", False):
+            return {
+                "available": False,
+                "reason": f"Psychologist is not available on {day_name.capitalize()}s.",
+            }
+
+        try:
+            booking_time_obj = datetime.strptime(booking_time, "%H:%M").time()
+            window_start = datetime.strptime(
+                day_schedule["start"], "%H:%M").time()
+            window_end = datetime.strptime(day_schedule["end"], "%H:%M").time()
+        except (ValueError, KeyError):
+            return {"available": False, "reason": "Invalid time format."}
+
+        if not (window_start <= booking_time_obj <= window_end):
+            return {
+                "available": False,
+                "reason": (
+                    f"Psychologist is only available between "
+                    f"{day_schedule['start']} and {day_schedule['end']} "
+                    f"on {day_name.capitalize()}s."
+                ),
+            }
+
+        # Step 3: Check for a conflicting booking at the exact same time
+        conflict = (
+            db.query(Booking)
+            .filter(
+                Booking.psychologist_id == psychologist_id,
+                Booking.date == booking_date,
+                Booking.time == booking_time,
+                Booking.status.in_([
+                    BookingStatus.PENDING.value,
+                    BookingStatus.CONFIRMED.value,
+                    BookingStatus.EMERGENCY.value,
+                ]),
+            )
+            .first()
+        )
+
+        if conflict:
+            return {
+                "available": False,
+                "reason": f"Psychologist already has a booking at {booking_time} on that day.",
+            }
+
+        return {"available": True, "reason": None}
