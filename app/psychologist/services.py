@@ -1,12 +1,16 @@
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.psychologist.models import Booking, BookingStatus, MeetingConfig, PsychologistInvite, PsychologistProfile
+from app.psychologist.models import (
+    Booking, BookingStatus, MeetingConfig,
+    PsychologistInvite,
+    PsychologistProfile, AvailabilitySchedule
+)
 from app.accounts.models import User
 
 
@@ -167,7 +171,8 @@ class PsychologistService:
             about_you=data.get("about_you"),
             default_session_duration=data.get("default_session_duration"),
             default_booking_type=data.get("default_booking_type"),
-            allow_emergency_bookings=data.get("allow_emergency_bookings", False),
+            allow_emergency_bookings=data.get(
+                "allow_emergency_bookings", False),
             is_profile_public=data.get("is_profile_public", True),
             accepting_new_clients=data.get("accepting_new_clients", True),
             visible_profile_fields=data.get("visible_profile_fields"),
@@ -252,7 +257,8 @@ class PsychologistService:
             about_you=data.get("about_you"),
             default_session_duration=data.get("default_session_duration"),
             default_booking_type=data.get("default_booking_type"),
-            allow_emergency_bookings=data.get("allow_emergency_bookings", False),
+            allow_emergency_bookings=data.get(
+                "allow_emergency_bookings", False),
             is_profile_public=data.get("is_profile_public", True),
             accepting_new_clients=data.get("accepting_new_clients", True),
             visible_profile_fields=data.get("visible_profile_fields"),
@@ -336,7 +342,8 @@ class PsychologistService:
             booking.rejection_reason = None
 
         if next_status == BookingStatus.COMPLETED.value:
-            session_summary = (booking.session_notes or {}).get("session_summary")
+            session_summary = (booking.session_notes or {}
+                               ).get("session_summary")
             if not session_summary:
                 raise HTTPException(
                     status_code=400,
@@ -407,3 +414,113 @@ class PsychologistService:
 
         raise HTTPException(
             status_code=404, detail="User or psychologist not found")
+
+    def get_available_psychologist_for_booking(
+        self,
+        db: Session,
+        booking_date: date,
+        booking_time: str,  # e.g. "14:00"
+        booking_type: str = "standard",
+    ) -> Optional[PsychologistProfile]:
+        """
+        Returns the best psychologist to assign a booking to.
+
+        Rules:
+        1. Must be approved and accepting new clients
+        2. Must allow emergency bookings (if booking_type is 'emergency')
+        3. Must be available on the booking day and the time must fall within their schedule window
+        4. Prefer psychologists with zero active bookings (completely free)
+        5. If all have active bookings, pick the least loaded
+        6. A psychologist must NOT be occupied while others are free
+        """
+        from core.dependency_injection import service_locator
+
+        # Step 1: Filter base candidates via filter_data
+        filters = {
+            "is_approved": True,
+            "accepting_new_clients": True,
+        }
+        if booking_type == "emergency":
+            filters["allow_emergency_bookings"] = True
+
+        candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
+            db, PsychologistProfile, filters
+        )
+
+        if not candidates:
+            return None
+
+        # Step 2: Filter by availability schedule
+        # booking_date.strftime("%A").lower() → e.g. "monday", "tuesday"
+        day_name = booking_date.strftime("%A").lower()
+
+        try:
+            booking_time_obj = datetime.strptime(booking_time, "%H:%M").time()
+        except (ValueError, TypeError):
+            booking_time_obj = None
+
+        available_candidates: List[PsychologistProfile] = []
+
+        for psych in candidates:
+            schedule_row = (
+                db.query(AvailabilitySchedule)
+                .filter(AvailabilitySchedule.psychologist_id == psych.user_id)
+                .first()
+            )
+
+            # No schedule row → skip (treat as unavailable)
+            if not schedule_row or not schedule_row.schedule:
+                continue
+
+            day_schedule = schedule_row.schedule.get(day_name)
+
+            # Day not in schedule or not enabled → skip
+            if not day_schedule or not day_schedule.get("enabled", False):
+                continue
+
+            # If a booking time was provided, check it falls within the window
+            if booking_time_obj:
+                try:
+                    window_start = datetime.strptime(
+                        day_schedule["start"], "%H:%M").time()
+                    window_end = datetime.strptime(
+                        day_schedule["end"], "%H:%M").time()
+                except (KeyError, ValueError):
+                    continue
+
+                if not (window_start <= booking_time_obj <= window_end):
+                    continue
+
+            available_candidates.append(psych)
+
+        if not available_candidates:
+            return None
+
+        # Step 3: Score each available psychologist by active booking load
+        active_statuses = [
+            BookingStatus.PENDING.value,
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.EMERGENCY.value,
+        ]
+
+        scored: List[tuple[PsychologistProfile, int]] = []
+
+        for psych in available_candidates:
+            active_count = (
+                db.query(Booking)
+                .filter(
+                    Booking.psychologist_id == psych.user_id,
+                    Booking.status.in_(active_statuses),
+                )
+                .count()
+            )
+            scored.append((psych, active_count))
+
+        # Step 4: Enforce fairness — free psychologist always wins
+        free = [psych for psych, count in scored if count == 0]
+        if free:
+            return free[0]
+
+        # Step 5: All are occupied — return least loaded
+        scored.sort(key=lambda x: x[1])
+        return scored[0][0]
