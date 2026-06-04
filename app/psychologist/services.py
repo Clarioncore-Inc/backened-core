@@ -272,6 +272,58 @@ class PsychologistService:
         db.refresh(profile)
         return {"user": user, "profile": profile}
 
+    def _send_booking_created_psychologist_slack_message(self, booking: Booking) -> None:
+        from app.core.dependency_injection import service_locator
+
+        psychologist_name = (
+            booking.psychologist.full_name if booking.psychologist else "Psychologist"
+        )
+        psychologist_email = (
+            booking.psychologist.email if booking.psychologist else ""
+        )
+        student_name = booking.student.full_name if booking.student else "A client"
+        session_time = self._format_booking_datetime(booking)
+        booking_type = (booking.booking_type or "standard").capitalize()
+        notes = booking.notes or "None provided."
+
+        service_locator.core_service.send_slack_message(
+            message=(
+                f"*🔔 New Booking Request – Action Required*\n\n"
+                f"*To:* {psychologist_name} <{psychologist_email}>\n\n"
+                f"Dear {psychologist_name},\n\n"
+                f"You have received a new *{booking_type}* consultation request from *{student_name}*.\n\n"
+                f"*Session Details:*\n"
+                f"• Date & Time: {session_time}\n"
+                f"• Type: {booking_type}\n"
+                f"• Client Notes: {notes}\n\n"
+                f"Please log in to your CerebroLearn dashboard to *confirm* or *reject* this booking.\n\n"
+                f"Warm regards,\n"
+                f"CerebroLearn Care Team"
+            )
+        )
+
+    def _send_booking_created_student_slack_message(self, booking: Booking) -> None:
+        from app.core.dependency_injection import service_locator
+
+        student_name = booking.student.full_name if booking.student else "there"
+        student_email = booking.student.email if booking.student else ""
+        session_time = self._format_booking_datetime(booking)
+
+        service_locator.core_service.send_slack_message(
+            message=(
+                f"*✅ Booking Received – Pending Confirmation*\n\n"
+                f"*To:* {student_name} <{student_email}>\n\n"
+                f"Dear {student_name},\n\n"
+                f"Your consultation booking for *{session_time}* has been successfully received "
+                f"and is currently *pending confirmation*.\n\n"
+                f"You will be notified as soon as your session is confirmed. "
+                f"In the meantime, you can view your booking status on your dashboard under *My Sessions*.\n\n"
+                f"If you have any questions, feel free to reach out to our support team.\n\n"
+                f"Warm regards,\n"
+                f"CerebroLearn Care Team"
+            )
+        )
+
     def create_booking(self, db: Session, student_id, data: dict) -> Booking:
         psychologist = self.get_available_psychologist_for_booking(
             db=db,
@@ -294,6 +346,17 @@ class PsychologistService:
         db.add(booking)
         db.commit()
         db.refresh(booking)
+
+        try:
+            self._send_booking_created_psychologist_slack_message(booking)
+        except Exception:
+            pass
+
+        try:
+            self._send_booking_created_student_slack_message(booking)
+        except Exception:
+            pass
+
         return booking
 
     def get_user_bookings(self, db: Session, user_id) -> List[Booking]:
@@ -448,20 +511,17 @@ class PsychologistService:
         5. If all have active bookings, pick the least loaded
         6. A psychologist must NOT be occupied while others are free
         """
-        from core.dependency_injection import service_locator
+        from app.core.dependency_injection import service_locator
 
         # Step 1: Filter base candidates via filter_data
         filters = {
             "is_approved": True,
-            "accepting_new_clients": True,
         }
-        if booking_type == "emergency":
-            filters["allow_emergency_bookings"] = True
 
         candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
             db, PsychologistProfile, filters
         )
-
+        
         if not candidates:
             return None
 
@@ -547,35 +607,36 @@ class PsychologistService:
         booking_type: str = "standard",
     ) -> List[str]:
         """
-        Returns a list of time slots where at least one psychologist is available.
-        Slots are every 60 minutes within any psychologist's schedule window.
-        """
+        Returns a list of time slots where at least one psychologist would be
+        assigned if a booking were made, using the same rules as
+        get_available_psychologist_for_booking (approved, accepting, schedule
+        window, fairness / load balancing).
 
-        # Step 1: Get approved + accepting candidates
+        Steps:
+        1. Collect every candidate slot from all psychologists' schedules for
+           the given day (union of their time windows, using each psychologist's
+           session duration as the step).
+        2. For each candidate slot call get_available_psychologist_for_booking;
+           keep the slot only if a psychologist is actually returned.
+        """
+        from app.core.dependency_injection import service_locator
+
+        # ── Step 1: build the universe of candidate slots ──────────────────
         filters = {
             "is_approved": True,
-            "accepting_new_clients": True,
         }
-        if booking_type == "emergency":
-            filters["allow_emergency_bookings"] = True
 
-        candidates: List[PsychologistProfile] = self.filter_data(
+        candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
             db, PsychologistProfile, filters
         )
 
         if not candidates:
             return []
 
+        # Derive the weekday name from the date (e.g. date(2026,6,4) → "thursday")
+        # and use it to look up each psychologist's availability schedule.
         day_name = booking_date.strftime("%A").lower()
-
-        active_statuses = [
-            BookingStatus.PENDING.value,
-            BookingStatus.CONFIRMED.value,
-            BookingStatus.EMERGENCY.value,
-        ]
-
-        # Step 2: Collect all slots where at least one psychologist is free
-        available_slots = set()
+        candidate_slots: set[str] = set()
 
         for psych in candidates:
             schedule_row = (
@@ -593,30 +654,31 @@ class PsychologistService:
                 continue
 
             try:
-                window_start = datetime.strptime(
-                    day_schedule["start"], "%H:%M")
+                window_start = datetime.strptime(day_schedule["start"], "%H:%M")
                 window_end = datetime.strptime(day_schedule["end"], "%H:%M")
             except (KeyError, ValueError):
                 continue
 
-            # Get this psychologist's already booked times on this date
-            booked_times = {
-                b.time for b in db.query(Booking).filter(
-                    Booking.psychologist_id == psych.user_id,
-                    Booking.date == booking_date,
-                    Booking.status.in_(active_statuses),
-                ).all()
-            }
-
-            # Generate slots using psychologist's session duration
             duration = psych.default_session_duration or 60
             current = window_start
 
             while current + timedelta(minutes=duration) <= window_end:
-                slot = current.strftime("%H:%M")
-                if slot not in booked_times:
-                    available_slots.add(slot)
+                candidate_slots.add(current.strftime("%H:%M"))
                 current += timedelta(minutes=duration)
 
-        # Step 3: Return sorted slots
-        return sorted(available_slots)
+        if not candidate_slots:
+            return []
+
+        # ── Step 2: keep only slots where a psychologist is actually available ─
+        available_slots = [
+            slot
+            for slot in sorted(candidate_slots)
+            if self.get_available_psychologist_for_booking(
+                db=db,
+                booking_date=booking_date,
+                booking_time=slot,
+                booking_type=booking_type,
+            ) is not None
+        ]
+
+        return available_slots
