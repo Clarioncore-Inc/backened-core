@@ -515,13 +515,13 @@ class PsychologistService:
 
         # Step 1: Filter base candidates via filter_data
         filters = {
-            "is_approved": True,
+            "status": "approved",
         }
 
         candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
             db, PsychologistProfile, filters
         )
-        
+
         if not candidates:
             return None
 
@@ -606,25 +606,11 @@ class PsychologistService:
         booking_date: date,
         booking_type: str = "standard",
     ) -> List[str]:
-        """
-        Returns a list of time slots where at least one psychologist would be
-        assigned if a booking were made, using the same rules as
-        get_available_psychologist_for_booking (approved, accepting, schedule
-        window, fairness / load balancing).
-
-        Steps:
-        1. Collect every candidate slot from all psychologists' schedules for
-           the given day (union of their time windows, using each psychologist's
-           session duration as the step).
-        2. For each candidate slot call get_available_psychologist_for_booking;
-           keep the slot only if a psychologist is actually returned.
-        """
         from app.core.dependency_injection import service_locator
 
-        # ── Step 1: build the universe of candidate slots ──────────────────
-        filters = {
-            "is_approved": True,
-        }
+        filters = {"status": "approved"}
+        if booking_type == "emergency":
+            filters["allow_emergency_bookings"] = True
 
         candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
             db, PsychologistProfile, filters
@@ -633,17 +619,42 @@ class PsychologistService:
         if not candidates:
             return []
 
-        # Derive the weekday name from the date (e.g. date(2026,6,4) → "thursday")
-        # and use it to look up each psychologist's availability schedule.
         day_name = booking_date.strftime("%A").lower()
-        candidate_slots: set[str] = set()
+
+        active_statuses = [
+            BookingStatus.PENDING.value,
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.EMERGENCY.value,
+        ]
+
+        # Fetch ALL booked times for this date in one query
+        all_booked = (
+            db.query(Booking.psychologist_id, Booking.time)
+            .filter(
+                Booking.date == booking_date,
+                Booking.status.in_(active_statuses),
+            )
+            .all()
+        )
+        # {psychologist_id: {time, time, ...}}
+        booked_map: dict = {}
+        for psych_id, time in all_booked:
+            booked_map.setdefault(psych_id, set()).add(time)
+
+        # Fetch ALL schedules in one query
+        psych_ids = [p.user_id for p in candidates]
+        schedule_rows = (
+            db.query(AvailabilitySchedule)
+            .filter(AvailabilitySchedule.psychologist_id.in_(psych_ids))
+            .all()
+        )
+        schedule_map = {row.psychologist_id: row for row in schedule_rows}
+
+        # Build available slots
+        available_slots: set[str] = set()
 
         for psych in candidates:
-            schedule_row = (
-                db.query(AvailabilitySchedule)
-                .filter(AvailabilitySchedule.psychologist_id == psych.user_id)
-                .first()
-            )
+            schedule_row = schedule_map.get(psych.user_id)
 
             if not schedule_row or not schedule_row.schedule:
                 continue
@@ -654,31 +665,20 @@ class PsychologistService:
                 continue
 
             try:
-                window_start = datetime.strptime(day_schedule["start"], "%H:%M")
+                window_start = datetime.strptime(
+                    day_schedule["start"], "%H:%M")
                 window_end = datetime.strptime(day_schedule["end"], "%H:%M")
             except (KeyError, ValueError):
                 continue
 
+            booked_times = booked_map.get(psych.user_id, set())
             duration = psych.default_session_duration or 60
             current = window_start
 
             while current + timedelta(minutes=duration) <= window_end:
-                candidate_slots.add(current.strftime("%H:%M"))
+                slot = current.strftime("%H:%M")
+                if slot not in booked_times:
+                    available_slots.add(slot)
                 current += timedelta(minutes=duration)
 
-        if not candidate_slots:
-            return []
-
-        # ── Step 2: keep only slots where a psychologist is actually available ─
-        available_slots = [
-            slot
-            for slot in sorted(candidate_slots)
-            if self.get_available_psychologist_for_booking(
-                db=db,
-                booking_date=booking_date,
-                booking_time=slot,
-                booking_type=booking_type,
-            ) is not None
-        ]
-
-        return available_slots
+        return sorted(available_slots)
