@@ -141,7 +141,7 @@ class AcceptInvitePayload(BaseSchema):
 
 
 class BookingCreate(BaseSchema):
-    psychologist_id: UUID
+    psychologist_id: Optional[UUID]
     date: date
     time: Optional[str] = None
     session_type: Optional[str] = None
@@ -227,7 +227,8 @@ class BookingTransitionPayload(BaseSchema):
             )
 
         if self.status == BookingStatus.CANCELLED and not self.rejection_reason:
-            raise ValueError("Rejection reason is required when rejecting a booking")
+            raise ValueError(
+                "Rejection reason is required when rejecting a booking")
 
         return self
 

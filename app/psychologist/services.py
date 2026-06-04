@@ -273,8 +273,23 @@ class PsychologistService:
         return {"user": user, "profile": profile}
 
     def create_booking(self, db: Session, student_id, data: dict) -> Booking:
+        psychologist = self.get_available_psychologist_for_booking(
+            db=db,
+            booking_date=data["date"],
+            booking_time=data.get("time"),
+            booking_type=data.get("booking_type", "standard"),
+        )
+
+        if not psychologist:
+            raise HTTPException(
+                status_code=400,
+                detail="No psychologist is available at the selected date and time.",
+            )
+
         data["student_id"] = student_id
+        data["psychologist_id"] = psychologist.user_id
         data["status"] = data.get("status") or BookingStatus.PENDING.value
+
         booking = Booking(**data)
         db.add(booking)
         db.commit()
@@ -525,87 +540,83 @@ class PsychologistService:
         scored.sort(key=lambda x: x[1])
         return scored[0][0]
 
-    def check_psychologist_availability(
+    def get_available_slots(
         self,
         db: Session,
-        psychologist_id: UUID,
         booking_date: date,
-        booking_time: str,  # e.g. "14:00"
-    ) -> dict:
+        booking_type: str = "standard",
+    ) -> List[str]:
         """
-        Checks if a specific psychologist is available at the given date and time.
-        Returns a dict with available: bool and a reason if not.
+        Returns a list of time slots where at least one psychologist is available.
+        Slots are every 60 minutes within any psychologist's schedule window.
         """
 
-        # Step 1: Get the profile
-        profile = self.get_profile(db, user_id=psychologist_id)
-        if not profile:
-            return {"available": False, "reason": "Psychologist not found."}
+        # Step 1: Get approved + accepting candidates
+        filters = {
+            "is_approved": True,
+            "accepting_new_clients": True,
+        }
+        if booking_type == "emergency":
+            filters["allow_emergency_bookings"] = True
 
-        if not profile.is_approved:
-            return {"available": False, "reason": "Psychologist is not approved."}
+        candidates: List[PsychologistProfile] = self.filter_data(
+            db, PsychologistProfile, filters
+        )
 
-        if not profile.accepting_new_clients:
-            return {"available": False, "reason": "Psychologist is not accepting new clients."}
+        if not candidates:
+            return []
 
-        # Step 2: Check availability schedule
         day_name = booking_date.strftime("%A").lower()
 
-        schedule_row = (
-            db.query(AvailabilitySchedule)
-            .filter(AvailabilitySchedule.psychologist_id == psychologist_id)
-            .first()
-        )
+        active_statuses = [
+            BookingStatus.PENDING.value,
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.EMERGENCY.value,
+        ]
 
-        if not schedule_row or not schedule_row.schedule:
-            return {"available": False, "reason": "Psychologist has no availability schedule set."}
+        # Step 2: Collect all slots where at least one psychologist is free
+        available_slots = set()
 
-        day_schedule = schedule_row.schedule.get(day_name)
-
-        if not day_schedule or not day_schedule.get("enabled", False):
-            return {
-                "available": False,
-                "reason": f"Psychologist is not available on {day_name.capitalize()}s.",
-            }
-
-        try:
-            booking_time_obj = datetime.strptime(booking_time, "%H:%M").time()
-            window_start = datetime.strptime(
-                day_schedule["start"], "%H:%M").time()
-            window_end = datetime.strptime(day_schedule["end"], "%H:%M").time()
-        except (ValueError, KeyError):
-            return {"available": False, "reason": "Invalid time format."}
-
-        if not (window_start <= booking_time_obj <= window_end):
-            return {
-                "available": False,
-                "reason": (
-                    f"Psychologist is only available between "
-                    f"{day_schedule['start']} and {day_schedule['end']} "
-                    f"on {day_name.capitalize()}s."
-                ),
-            }
-
-        # Step 3: Check for a conflicting booking at the exact same time
-        conflict = (
-            db.query(Booking)
-            .filter(
-                Booking.psychologist_id == psychologist_id,
-                Booking.date == booking_date,
-                Booking.time == booking_time,
-                Booking.status.in_([
-                    BookingStatus.PENDING.value,
-                    BookingStatus.CONFIRMED.value,
-                    BookingStatus.EMERGENCY.value,
-                ]),
+        for psych in candidates:
+            schedule_row = (
+                db.query(AvailabilitySchedule)
+                .filter(AvailabilitySchedule.psychologist_id == psych.user_id)
+                .first()
             )
-            .first()
-        )
 
-        if conflict:
-            return {
-                "available": False,
-                "reason": f"Psychologist already has a booking at {booking_time} on that day.",
+            if not schedule_row or not schedule_row.schedule:
+                continue
+
+            day_schedule = schedule_row.schedule.get(day_name)
+
+            if not day_schedule or not day_schedule.get("enabled", False):
+                continue
+
+            try:
+                window_start = datetime.strptime(
+                    day_schedule["start"], "%H:%M")
+                window_end = datetime.strptime(day_schedule["end"], "%H:%M")
+            except (KeyError, ValueError):
+                continue
+
+            # Get this psychologist's already booked times on this date
+            booked_times = {
+                b.time for b in db.query(Booking).filter(
+                    Booking.psychologist_id == psych.user_id,
+                    Booking.date == booking_date,
+                    Booking.status.in_(active_statuses),
+                ).all()
             }
 
-        return {"available": True, "reason": None}
+            # Generate slots using psychologist's session duration
+            duration = psych.default_session_duration or 60
+            current = window_start
+
+            while current + timedelta(minutes=duration) <= window_end:
+                slot = current.strftime("%H:%M")
+                if slot not in booked_times:
+                    available_slots.add(slot)
+                current += timedelta(minutes=duration)
+
+        # Step 3: Return sorted slots
+        return sorted(available_slots)
