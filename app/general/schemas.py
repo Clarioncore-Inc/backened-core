@@ -12,6 +12,8 @@ class AppSettingsResponse(BaseSchema):
     contacts: Optional[str] = None
     email: Optional[str] = None
     iq_test_price: float
+    refresh_booking_in_minute: int
+    psychologist_booking_reminder_in_minutes: int
     created_at: datetime
     updated_at: datetime
 
@@ -22,3 +24,5 @@ class AppSettingsUpdateRequest(BaseSchema):
     contacts: Optional[str] = None
     email: Optional[str] = None
     iq_test_price: Optional[float] = None
+    refresh_booking_in_minute: Optional[int] = None
+    psychologist_booking_reminder_in_minutes: Optional[int] = None

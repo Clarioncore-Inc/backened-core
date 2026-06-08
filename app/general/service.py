@@ -14,6 +14,8 @@ DEFAULT_APP_SETTINGS: Dict[str, Any] = {
     "contacts": None,
     "email": None,
     "iq_test_price": Decimal("299.0"),
+    "refresh_booking_in_minute": 5,
+    "psychologist_booking_reminder_in_minutes": 30,
 }
 
 
@@ -42,6 +44,10 @@ class GeneralService:
                 continue
             if field == "iq_test_price":
                 value = Decimal(str(value))
+            if field == "refresh_booking_in_minute":
+                value = int(value)
+            if field == "psychologist_booking_reminder_in_minutes":
+                value = int(value)
             setattr(settings, field, value)
         db.commit()
         db.refresh(settings)

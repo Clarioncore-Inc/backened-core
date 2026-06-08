@@ -4,8 +4,10 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
+from app.general.models import AppSettings
 from app.psychologist.models import (
     Booking, BookingStatus, MeetingConfig,
     PsychologistInvite,
@@ -15,10 +17,62 @@ from app.accounts.models import User
 
 
 class PsychologistService:
+    _pending_booking_reminder_cache: dict[str, str] = {}
+
     def _format_booking_datetime(self, booking: Booking) -> str:
         if booking.date is None:
             return booking.time or "the scheduled time"
         return f"{booking.date.strftime('%B %d, %Y')} at {booking.time}"
+
+    def _parse_booking_datetime(self, booking: Booking) -> Optional[datetime]:
+        if booking.date is None or not booking.time:
+            return None
+
+        for fmt in ("%H:%M", "%H:%M:%S"):
+            try:
+                parsed_time = datetime.strptime(booking.time, fmt).time()
+                return datetime.combine(booking.date, parsed_time)
+            except ValueError:
+                continue
+
+        return None
+
+    def _send_pending_booking_admin_reminder(
+        self,
+        overdue_bookings: List[Booking],
+        admin_users: List[User],
+        reminder_minutes: int,
+    ) -> None:
+        from app.core.dependency_injection import service_locator
+
+        admin_targets = ", ".join(
+            f"{admin.full_name} <{admin.email}>" if admin.email else admin.full_name
+            for admin in admin_users
+        ) or "Admin team"
+
+        lines: List[str] = []
+        for booking in overdue_bookings[:10]:
+            student_name = booking.student.full_name if booking.student else "Client"
+            student_email = booking.student.email if booking.student else "Unknown email"
+            psychologist_name = (
+                booking.psychologist.full_name if booking.psychologist else "Assigned Psychologist"
+            )
+            lines.append(
+                f"• {student_name} <{student_email}> — {self._format_booking_datetime(booking)} — Psychologist: {psychologist_name}"
+            )
+
+        if len(overdue_bookings) > 10:
+            lines.append(f"• ...and {len(overdue_bookings) - 10} more overdue booking(s)")
+
+        service_locator.core_service.send_slack_message(
+            message=(
+                "*⚠️ Pending Booking Reminder*\n\n"
+                f"*To:* {admin_targets}\n\n"
+                f"The following booking request(s) are still *pending acknowledgement* more than *{reminder_minutes} minute(s)* after the scheduled booking time:\n"
+                f"{'\n'.join(lines)}\n\n"
+                "Please review these bookings in the psychologist dashboard."
+            )
+        )
 
     def _send_booking_rejection_slack_message(self, booking: Booking) -> None:
         from app.core.dependency_injection import service_locator
@@ -83,6 +137,7 @@ class PsychologistService:
                 f"Dear {student_name},\n\n"
                 f"Great news! Your consultation with {psychologist_name} has been *confirmed* for {session_time}."
                 f"{meeting_block}\n"
+                "Please note that this booking is subject to change.\n"
                 "Please join the meeting a few minutes early. If you have any questions, "
                 "feel free to reach out to our support team.\n\n"
                 "Warm regards,\n"
@@ -291,12 +346,10 @@ class PsychologistService:
                 f"*🔔 New Booking Request – Action Required*\n\n"
                 f"*To:* {psychologist_name} <{psychologist_email}>\n\n"
                 f"Dear {psychologist_name},\n\n"
-                f"You have received a new *{booking_type}* consultation request from *{student_name}*.\n\n"
+                f"You have received a new consultation request from *{student_name}*.\n\n"
                 f"*Session Details:*\n"
                 f"• Date & Time: {session_time}\n"
-                f"• Type: {booking_type}\n"
-                f"• Client Notes: {notes}\n\n"
-                f"Please log in to your CerebroLearn dashboard to *confirm* or *reject* this booking.\n\n"
+                f"Please log in to your CerebroLearn dashboard to *acknowledge* this booking.\n\n"
                 f"Warm regards,\n"
                 f"CerebroLearn Care Team"
             )
@@ -316,6 +369,7 @@ class PsychologistService:
                 f"Dear {student_name},\n\n"
                 f"Your consultation booking for *{session_time}* has been successfully received "
                 f"and is currently *pending confirmation*.\n\n"
+                f"Please note that this booking is subject to change.\n\n"
                 f"You will be notified as soon as your session is confirmed. "
                 f"In the meantime, you can view your booking status on your dashboard under *My Sessions*.\n\n"
                 f"If you have any questions, feel free to reach out to our support team.\n\n"
@@ -468,6 +522,77 @@ class PsychologistService:
         db.commit()
         db.refresh(booking)
         return booking
+
+    def check_pending_bookings_reminder(self, db: Session) -> int:
+        bind = db.get_bind()
+        if bind is None or not inspect(bind).has_table(AppSettings.__tablename__):
+            return 0
+
+        settings = db.query(AppSettings).order_by(AppSettings.created_at.asc()).first()
+        reminder_minutes = int(
+            getattr(settings, "psychologist_booking_reminder_in_minutes", 30) or 30
+        )
+        if reminder_minutes <= 0:
+            self._pending_booking_reminder_cache = {}
+            return 0
+
+        now = datetime.now()
+        pending_bookings = (
+            db.query(Booking)
+            .filter(Booking.status == BookingStatus.PENDING.value)
+            .all()
+        )
+
+        current_cache_keys: set[str] = set()
+        overdue_to_notify: List[tuple[str, Booking]] = []
+
+        for booking in pending_bookings:
+            booking_datetime = self._parse_booking_datetime(booking)
+            if booking_datetime is None:
+                continue
+
+            if booking_datetime + timedelta(minutes=reminder_minutes) > now:
+                continue
+
+            cache_key = (
+                f"{booking.id}:{booking.updated_at.isoformat() if booking.updated_at else ''}"
+            )
+            current_cache_keys.add(cache_key)
+
+            if cache_key in self._pending_booking_reminder_cache:
+                continue
+
+            overdue_to_notify.append((cache_key, booking))
+
+        self._pending_booking_reminder_cache = {
+            key: sent_at
+            for key, sent_at in self._pending_booking_reminder_cache.items()
+            if key in current_cache_keys
+        }
+
+        if not overdue_to_notify:
+            return 0
+
+        admin_users = (
+            db.query(User)
+            .filter(User.role.in_(["admin", "org_admin"]))
+            .all()
+        )
+        if not admin_users:
+            return 0
+
+        overdue_bookings = [booking for _, booking in overdue_to_notify]
+        self._send_pending_booking_admin_reminder(
+            overdue_bookings=overdue_bookings,
+            admin_users=admin_users,
+            reminder_minutes=reminder_minutes,
+        )
+
+        sent_at = datetime.utcnow().isoformat()
+        for cache_key, _ in overdue_to_notify:
+            self._pending_booking_reminder_cache[cache_key] = sent_at
+
+        return len(overdue_bookings)
 
     def get_booking_notes(self, db: Session, booking_id, psychologist_id) -> Optional[Booking]:
         return (

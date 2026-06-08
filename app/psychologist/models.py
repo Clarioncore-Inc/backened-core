@@ -86,6 +86,7 @@ class BookingStatus(PyEnum):
     EMERGENCY = "emergency"
     CANCELLED = "cancelled"
     COMPLETED = "completed"
+    ACKNOWLEDGED = "acknowledged"
 
 
 BookingStatusEnum = ENUM(

@@ -28,7 +28,25 @@ def ping_render():
         logging.warning("⚠️ API_BASE_URL is not set!")
 
 
+def check_pending_bookings_reminder():
+    db = SessionLocal()
+    try:
+        reminder_count = service_locator.psychologist_service.check_pending_bookings_reminder(
+            db=db
+        )
+        if reminder_count:
+            logging.info(
+                "✅ Sent pending booking reminder for %s overdue booking(s)",
+                reminder_count,
+            )
+    except Exception:
+        logging.exception("❌ Failed to process pending booking reminders")
+    finally:
+        db.close()
+
+
 scheduler.add_job(ping_render, 'interval', minutes=14)
+scheduler.add_job(check_pending_bookings_reminder, 'interval', minutes=5)
 
 
 @asynccontextmanager

@@ -151,16 +151,25 @@ class AppSettingsAdmin(ModelView, model=models.AppSettings):
         models.AppSettings.email,
         models.AppSettings.contacts,
         models.AppSettings.iq_test_price,
+        models.AppSettings.refresh_booking_in_minute,
+        models.AppSettings.psychologist_booking_reminder_in_minutes,
         models.AppSettings.created_at,
     ]
     column_searchable_list = [models.AppSettings.app_name, models.AppSettings.email]
-    column_sortable_list = [models.AppSettings.app_name, models.AppSettings.iq_test_price]
+    column_sortable_list = [
+        models.AppSettings.app_name,
+        models.AppSettings.iq_test_price,
+        models.AppSettings.refresh_booking_in_minute,
+        models.AppSettings.psychologist_booking_reminder_in_minutes,
+    ]
     form_columns = [
         models.AppSettings.app_name,
         models.AppSettings.logo,
         models.AppSettings.contacts,
         models.AppSettings.email,
         models.AppSettings.iq_test_price,
+        models.AppSettings.refresh_booking_in_minute,
+        models.AppSettings.psychologist_booking_reminder_in_minutes,
     ]
     can_delete = False
 
