@@ -1,4 +1,5 @@
 import secrets
+import logging
 from calendar import monthrange
 from datetime import datetime, timedelta, timezone, date
 from typing import List, Optional
@@ -15,7 +16,7 @@ from app.psychologist.models import (
     PsychologistProfile, AvailabilitySchedule
 )
 from app.accounts.models import User
-
+logger = logging.getLogger(__name__)
 
 class PsychologistService:
     _pending_booking_reminder_cache: dict[str, str] = {}
@@ -352,13 +353,18 @@ class PsychologistService:
             )
         )
 
-    def _send_booking_created_student_slack_message(self, booking: Booking) -> None:
+    def _send_booking_created_student_slack_message(self, booking: Booking, db: Session) -> None:
         from app.core.dependency_injection import service_locator
 
         student_name = booking.student.full_name if booking.student else "there"
         student_email = booking.student.email if booking.student else ""
         session_time = self._format_booking_datetime(booking)
-        email = service_locator.general_service.get_app_settings(db=None).email if service_locator.general_service.get_app_settings(db=None) else "support@example.com"
+        support_email = "support@example.com"
+        try:
+            app_settings = service_locator.general_service.get_app_settings(db=db)
+            support_email = app_settings.email or support_email
+        except Exception:
+            logger.exception("Failed to load app settings for booking confirmation Slack message")
 
         service_locator.core_service.send_slack_message(
             message=(
@@ -369,7 +375,7 @@ class PsychologistService:
                 f"Please note that this booking is subject to change.\n\n"
                 f"You will be notified as soon as your session is confirmed. "
                 f"In the meantime, you can view your booking status on your dashboard under *My Sessions*.\n\n"
-                f"If you have any questions, feel free to reach out to our support team at {email}.\n\n"
+                f"If you have any questions, feel free to reach out to our support team at {support_email}.\n\n"
                 f"Warm regards,\n"
                 f"CerebroLearn Care Team"
             )
@@ -401,12 +407,12 @@ class PsychologistService:
         try:
             self._send_booking_created_psychologist_slack_message(booking)
         except Exception:
-            pass
+            logger.error(f"Failed to send booking confirmation Slack message for booking ID {booking.id}")
 
         try:
-            self._send_booking_created_student_slack_message(booking)
-        except Exception:
-            pass
+            self._send_booking_created_student_slack_message(booking, db)
+        except Exception as e:
+            logger.error(f"Failed to send booking confirmation Slack message for booking ID {booking.id}: {e}")
 
         return booking
 
