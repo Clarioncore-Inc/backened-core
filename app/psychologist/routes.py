@@ -1,6 +1,6 @@
 from typing import List
 from uuid import UUID
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi_utils.cbv import cbv
@@ -184,6 +184,25 @@ class PsychologistView:
             booking_type=booking_type,
         )
         return {"date": booking_date, "available_slots": slots}
+
+    @router.get("/bookings/available-dates")
+    def get_available_dates(
+        self,
+        month: str = Query(..., description="e.g. 2025-01"),
+        booking_type: str = Query(default="standard"),
+    ):
+        try:
+            parsed_month = datetime.strptime(month, "%Y-%m")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="month must be in YYYY-MM format")
+
+        available_dates = service_locator.psychologist_service.get_available_dates(
+            db=self.db,
+            year=parsed_month.year,
+            month=parsed_month.month,
+            booking_type=booking_type,
+        )
+        return {"month": month, "available_dates": available_dates}
 
     @router.put("/bookings/{id}/notes", response_model=BookingNotesResponse)
     def update_booking_notes(self, id: UUID, payload: BookingNotesPayload):

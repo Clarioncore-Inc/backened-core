@@ -1,4 +1,5 @@
 import secrets
+from calendar import monthrange
 from datetime import datetime, timedelta, timezone, date
 from typing import List, Optional
 from uuid import UUID
@@ -139,7 +140,7 @@ class PsychologistService:
                 f"{meeting_block}\n"
                 "Please note that this booking is subject to change.\n"
                 "Please join the meeting a few minutes early. If you have any questions, "
-                "feel free to reach out to our support team.\n\n"
+                "feel free to reach out to our support team at cerebrolearn@example.com.\n\n"
                 "Warm regards,\n"
                 "CerebroLearn Care Team"
             )
@@ -148,7 +149,7 @@ class PsychologistService:
     def list_approved(self, db: Session) -> List[PsychologistProfile]:
         return (
             db.query(PsychologistProfile)
-            .filter(PsychologistProfile.is_approved == True)
+            .filter(PsychologistProfile.status == "approved")
             .all()
         )
 
@@ -226,8 +227,6 @@ class PsychologistService:
             about_you=data.get("about_you"),
             default_session_duration=data.get("default_session_duration"),
             default_booking_type=data.get("default_booking_type"),
-            allow_emergency_bookings=data.get(
-                "allow_emergency_bookings", False),
             is_profile_public=data.get("is_profile_public", True),
             accepting_new_clients=data.get("accepting_new_clients", True),
             visible_profile_fields=data.get("visible_profile_fields"),
@@ -312,8 +311,6 @@ class PsychologistService:
             about_you=data.get("about_you"),
             default_session_duration=data.get("default_session_duration"),
             default_booking_type=data.get("default_booking_type"),
-            allow_emergency_bookings=data.get(
-                "allow_emergency_bookings", False),
             is_profile_public=data.get("is_profile_public", True),
             accepting_new_clients=data.get("accepting_new_clients", True),
             visible_profile_fields=data.get("visible_profile_fields"),
@@ -361,18 +358,18 @@ class PsychologistService:
         student_name = booking.student.full_name if booking.student else "there"
         student_email = booking.student.email if booking.student else ""
         session_time = self._format_booking_datetime(booking)
+        email = service_locator.general_service.get_app_settings(db=None).email if service_locator.general_service.get_app_settings(db=None) else "support@example.com"
 
         service_locator.core_service.send_slack_message(
             message=(
                 f"*✅ Booking Received – Pending Confirmation*\n\n"
                 f"*To:* {student_name} <{student_email}>\n\n"
                 f"Dear {student_name},\n\n"
-                f"Your consultation booking for *{session_time}* has been successfully received "
-                f"and is currently *pending confirmation*.\n\n"
+                f"Your consultation booking for *{session_time}* has been successfully received.\n\n"
                 f"Please note that this booking is subject to change.\n\n"
                 f"You will be notified as soon as your session is confirmed. "
                 f"In the meantime, you can view your booking status on your dashboard under *My Sessions*.\n\n"
-                f"If you have any questions, feel free to reach out to our support team.\n\n"
+                f"If you have any questions, feel free to reach out to our support team at {email}.\n\n"
                 f"Warm regards,\n"
                 f"CerebroLearn Care Team"
             )
@@ -474,12 +471,17 @@ class PsychologistService:
             booking.rejection_reason = None
 
         if next_status == BookingStatus.COMPLETED.value:
-            session_summary = (booking.session_notes or {}
-                               ).get("session_summary")
-            if not session_summary:
+            session_notes = booking.session_notes or {}
+            session_summary = session_notes.get("session_summary")
+            cognitive_profile = session_notes.get("cognitive_profile")
+            has_cognitive_profile = isinstance(cognitive_profile, dict) and any(
+                value not in (None, "") for value in cognitive_profile.values()
+            )
+
+            if not session_summary and not has_cognitive_profile:
                 raise HTTPException(
                     status_code=400,
-                    detail="Session notes are required before marking the booking as done",
+                    detail="Session results are required before marking the booking as done",
                 )
 
         booking.status = next_status
@@ -507,17 +509,25 @@ class PsychologistService:
             return None
 
         current_notes = dict(booking.session_notes or {})
-        current_notes.update(data)
+        next_notes = {
+            key: value
+            for key, value in {
+                "meeting_platform": current_notes.get("meeting_platform"),
+                "meeting_link": current_notes.get("meeting_link"),
+            }.items()
+            if value not in (None, "")
+        }
+        next_notes.update(data)
 
-        session_summary = current_notes.get("session_summary")
+        cognitive_profile = next_notes.get("cognitive_profile")
         is_cancelled = booking.status == BookingStatus.CANCELLED.value
-        if not is_cancelled and not session_summary:
+        if not is_cancelled and not cognitive_profile:
             raise HTTPException(
                 status_code=400,
-                detail="Session summary is required unless the client cancelled",
+                detail="Cognitive profile scores are required unless the client cancelled",
             )
 
-        booking.session_notes = current_notes or None
+        booking.session_notes = next_notes or None
         booking.session_notes_updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(booking)
@@ -630,11 +640,10 @@ class PsychologistService:
 
         Rules:
         1. Must be approved and accepting new clients
-        2. Must allow emergency bookings (if booking_type is 'emergency')
-        3. Must be available on the booking day and the time must fall within their schedule window
-        4. Prefer psychologists with zero active bookings (completely free)
-        5. If all have active bookings, pick the least loaded
-        6. A psychologist must NOT be occupied while others are free
+        2. Must be available on the booking day and the time must fall within their schedule window
+        3. Prefer psychologists with zero active bookings (completely free)
+        4. If all have active bookings, pick the least loaded
+        5. A psychologist must NOT be occupied while others are free
         """
         from app.core.dependency_injection import service_locator
 
@@ -734,8 +743,6 @@ class PsychologistService:
         from app.core.dependency_injection import service_locator
 
         filters = {"status": "approved"}
-        if booking_type == "emergency":
-            filters["allow_emergency_bookings"] = True
 
         candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
             db, PsychologistProfile, filters
@@ -807,3 +814,75 @@ class PsychologistService:
                 current += timedelta(minutes=duration)
 
         return sorted(available_slots)
+
+    def get_available_dates(
+        self,
+        db: Session,
+        year: int,
+        month: int,
+        booking_type: str = "standard",
+    ) -> List[str]:
+        from app.core.dependency_injection import service_locator
+
+        filters = {"status": "approved"}
+
+        candidates: List[PsychologistProfile] = service_locator.general_service.filter_data(
+            db, PsychologistProfile, filters
+        )
+
+        if not candidates:
+            return []
+
+        psych_ids = [p.user_id for p in candidates]
+        schedule_rows = (
+            db.query(AvailabilitySchedule)
+            .filter(AvailabilitySchedule.psychologist_id.in_(psych_ids))
+            .all()
+        )
+
+        enabled_weekdays: set[str] = set()
+        for schedule_row in schedule_rows:
+            schedule = schedule_row.schedule or {}
+            for weekday_name, day_schedule in schedule.items():
+                if not isinstance(day_schedule, dict):
+                    continue
+
+                if not day_schedule.get("enabled", False):
+                    continue
+
+                try:
+                    window_start = datetime.strptime(day_schedule["start"], "%H:%M")
+                    window_end = datetime.strptime(day_schedule["end"], "%H:%M")
+                except (KeyError, TypeError, ValueError):
+                    continue
+
+                if window_start >= window_end:
+                    continue
+
+                enabled_weekdays.add(str(weekday_name).lower())
+
+        if not enabled_weekdays:
+            return []
+
+        _, days_in_month = monthrange(year, month)
+        today_value = date.today()
+        available_dates: List[str] = []
+
+        for day in range(1, days_in_month + 1):
+            booking_date = date(year, month, day)
+            if booking_date < today_value:
+                continue
+
+            weekday_name = booking_date.strftime("%A").lower()
+            if weekday_name not in enabled_weekdays:
+                continue
+
+            slots = self.get_available_slots(
+                db=db,
+                booking_date=booking_date,
+                booking_type=booking_type,
+            )
+            if slots:
+                available_dates.append(booking_date.isoformat())
+
+        return available_dates

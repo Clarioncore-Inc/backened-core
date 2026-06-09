@@ -35,7 +35,6 @@ class PsychologistProfileResponse(BaseSchema):
     user:   Optional[UserResponse] = None
     hourly_rate: Optional[Any] = None
     bio: Optional[str] = None
-    is_approved: bool
     created_at: datetime
     updated_at: datetime
     license_number: Optional[str] = None
@@ -48,7 +47,6 @@ class PsychologistProfileResponse(BaseSchema):
     status: Optional[PsychologistProfileStatus] = None
     default_session_duration: Optional[int] = None
     default_booking_type: Optional[BookingType] = None
-    allow_emergency_bookings: Optional[bool] = None
     is_profile_public: Optional[bool] = None
     accepting_new_clients: Optional[bool] = None
     visible_profile_fields: Optional[VisibleProfileFields] = None
@@ -68,7 +66,6 @@ class PsychologistProfileUpdate(BaseSchema):
     user: Optional[UserUpdate] = None
     default_session_duration: Optional[int] = None
     default_booking_type: Optional[BookingType] = None
-    allow_emergency_bookings: Optional[bool] = None
     is_profile_public: Optional[bool] = None
     accepting_new_clients: Optional[bool] = None
     visible_profile_fields: Optional[VisibleProfileFields] = None
@@ -98,7 +95,6 @@ class PsychologistRegisterCreate(BaseSchema):
     status: Optional[PsychologistProfileStatus] = None
     default_session_duration: Optional[int] = 60
     default_booking_type: Optional[BookingType] = BookingType.STANDARD
-    allow_emergency_bookings: bool = False
     is_profile_public: bool = True
     accepting_new_clients: bool = True
     visible_profile_fields: Optional[VisibleProfileFields] = None
@@ -132,7 +128,6 @@ class AcceptInvitePayload(BaseSchema):
     location: Optional[str] = None
     default_session_duration: Optional[int] = 60
     default_booking_type: Optional[BookingType] = BookingType.STANDARD
-    allow_emergency_bookings: bool = False
     is_profile_public: bool = True
     accepting_new_clients: bool = True
     visible_profile_fields: Optional[VisibleProfileFields] = None
@@ -267,6 +262,57 @@ class BookingNotesPayload(BaseSchema):
     next_session_focus: Optional[str] = None
     private_notes: Optional[str] = None
     next_session_recommended: Optional[bool] = None
+    cognitive_profile: Optional[dict[str, Optional[float]]] = None
+    cognitive_profile_notes: Optional[dict[str, Optional[str]]] = None
+
+    @field_validator("cognitive_profile", mode="before")
+    @classmethod
+    def normalize_cognitive_profile(cls, value: Any):
+        if value in (None, ""):
+            return None
+
+        if not isinstance(value, dict):
+            raise ValueError("cognitive_profile must be an object")
+
+        normalized: dict[str, float] = {}
+        for key, raw_score in value.items():
+            if raw_score in (None, ""):
+                continue
+
+            try:
+                score = float(raw_score)
+            except (TypeError, ValueError):
+                raise ValueError(f"{key} must be a valid number")
+
+            if score < 0 or score > 100:
+                raise ValueError(f"{key} must be between 0 and 100")
+
+            normalized[key] = round(score, 2)
+
+        return normalized or None
+
+    @field_validator("cognitive_profile_notes", mode="before")
+    @classmethod
+    def normalize_cognitive_profile_notes(cls, value: Any):
+        if value in (None, ""):
+            return None
+
+        if not isinstance(value, dict):
+            raise ValueError("cognitive_profile_notes must be an object")
+
+        normalized: dict[str, str] = {}
+        for key, raw_note in value.items():
+            if raw_note in (None, ""):
+                continue
+
+            if not isinstance(raw_note, str):
+                raise ValueError(f"{key} note must be a valid string")
+
+            note = raw_note.strip()
+            if note:
+                normalized[key] = note
+
+        return normalized or None
 
     @field_validator(
         "meeting_link",

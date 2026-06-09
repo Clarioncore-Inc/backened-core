@@ -223,10 +223,10 @@ class PsychologistProfileAdmin(ModelView, model=models.PsychologistProfile):
     icon = "fa-solid fa-user-doctor"
     column_list = [models.PsychologistProfile.id, models.PsychologistProfile.user_id,
                    models.PsychologistProfile.specialization, models.PsychologistProfile.hourly_rate,
-                   models.  PsychologistProfile.is_approved]
+                   models.PsychologistProfile.status]
     column_filters = [
-        BooleanFilter(models.PsychologistProfile.is_approved,
-                      title="Approved"),
+        AllUniqueStringValuesFilter(models.PsychologistProfile.status,
+                                    title="Status"),
     ]
 
 
