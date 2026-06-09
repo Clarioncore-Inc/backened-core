@@ -64,7 +64,8 @@ class PsychologistService:
             )
 
         if len(overdue_bookings) > 10:
-            lines.append(f"• ...and {len(overdue_bookings) - 10} more overdue booking(s)")
+            lines.append(
+                f"• ...and {len(overdue_bookings) - 10} more overdue booking(s)")
 
         service_locator.core_service.send_slack_message(
             message=(
@@ -544,7 +545,8 @@ class PsychologistService:
         if bind is None or not inspect(bind).has_table(AppSettings.__tablename__):
             return 0
 
-        settings = db.query(AppSettings).order_by(AppSettings.created_at.asc()).first()
+        settings = db.query(AppSettings).order_by(
+            AppSettings.created_at.asc()).first()
         reminder_minutes = int(
             getattr(settings, "psychologist_booking_reminder_in_minutes", 30) or 30
         )
@@ -857,8 +859,10 @@ class PsychologistService:
                     continue
 
                 try:
-                    window_start = datetime.strptime(day_schedule["start"], "%H:%M")
-                    window_end = datetime.strptime(day_schedule["end"], "%H:%M")
+                    window_start = datetime.strptime(
+                        day_schedule["start"], "%H:%M")
+                    window_end = datetime.strptime(
+                        day_schedule["end"], "%H:%M")
                 except (KeyError, TypeError, ValueError):
                     continue
 
