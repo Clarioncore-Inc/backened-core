@@ -41,6 +41,7 @@ class PsychologistProfile(BaseModel):
     years_of_experience = Column(String, nullable=True)
     specialization = Column(Text, nullable=True)
     about_you = Column(Text, nullable=True)
+    signature_image = Column(String, nullable=True)
     education_and_qualifications = Column(ARRAY(Text), nullable=True)
     certification_and_additional_training = Column(ARRAY(Text), nullable=True)
     default_session_duration = Column(Integer, nullable=True, default=60)

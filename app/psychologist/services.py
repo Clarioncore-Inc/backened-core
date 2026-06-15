@@ -1,5 +1,6 @@
 import secrets
 import logging
+import requests
 from calendar import monthrange
 from datetime import datetime, timedelta, timezone, date
 from typing import List, Optional
@@ -10,6 +11,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.general.models import AppSettings
+from app.settings import FILE_UPLOAD_MAX_MEMORY_SIZE, REMOVE_BG_API_KEY
 from app.psychologist.models import (
     Booking, BookingStatus, MeetingConfig,
     PsychologistInvite,
@@ -20,6 +22,74 @@ logger = logging.getLogger(__name__)
 
 class PsychologistService:
     _pending_booking_reminder_cache: dict[str, str] = {}
+
+    def remove_signature_background(
+        self,
+        *,
+        filename: Optional[str],
+        content_type: Optional[str],
+        file_bytes: bytes,
+    ) -> tuple[bytes, str]:
+        if not REMOVE_BG_API_KEY:
+            raise HTTPException(
+                status_code=503,
+                detail="Signature background removal is not configured.",
+            )
+
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded signature image is empty.")
+
+        if len(file_bytes) > FILE_UPLOAD_MAX_MEMORY_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail="Signature image must be smaller than 10 MB.",
+            )
+
+        if content_type and not content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Please upload a valid image file.")
+
+        try:
+            response = requests.post(
+                "https://api.remove.bg/v1.0/removebg",
+                headers={"X-Api-Key": REMOVE_BG_API_KEY},
+                files={
+                    "image_file": (
+                        filename or "signature.png",
+                        file_bytes,
+                        content_type or "application/octet-stream",
+                    )
+                },
+                data={"size": "auto", "format": "png"},
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            logger.exception("[PsychologistService] remove.bg request failed: %s", exc)
+            raise HTTPException(
+                status_code=502,
+                detail="Unable to remove the signature background right now.",
+            )
+
+        if response.status_code != 200:
+            detail = "Unable to remove the signature background right now."
+            try:
+                payload = response.json()
+                if isinstance(payload, dict):
+                    errors = payload.get("errors")
+                    if isinstance(errors, list) and errors:
+                        first_error = errors[0]
+                        if isinstance(first_error, dict):
+                            detail = (
+                                first_error.get("title")
+                                or first_error.get("detail")
+                                or detail
+                            )
+            except ValueError:
+                pass
+
+            raise HTTPException(status_code=502, detail=detail)
+
+        media_type = response.headers.get("Content-Type") or "image/png"
+        return response.content, media_type
 
     def _format_booking_datetime(self, booking: Booking) -> str:
         if booking.date is None:
@@ -227,6 +297,7 @@ class PsychologistService:
             years_of_experience=data.get("years_of_experience"),
             specialization=data.get("specialization"),
             about_you=data.get("about_you"),
+            signature_image=data.get("signature_image"),
             default_session_duration=data.get("default_session_duration"),
             default_booking_type=data.get("default_booking_type"),
             is_profile_public=data.get("is_profile_public", True),
@@ -311,6 +382,7 @@ class PsychologistService:
             years_of_experience=data.get("years_of_experience"),
             specialization=data.get("specialization"),
             about_you=data.get("about_you"),
+            signature_image=data.get("signature_image"),
             default_session_duration=data.get("default_session_duration"),
             default_booking_type=data.get("default_booking_type"),
             is_profile_public=data.get("is_profile_public", True),

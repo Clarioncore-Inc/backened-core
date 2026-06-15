@@ -1,6 +1,6 @@
 import json
 
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import AliasPath, Field, computed_field, field_validator, model_validator
 from typing import Any, Optional
 from uuid import UUID
 from datetime import date, datetime
@@ -41,6 +41,7 @@ class PsychologistProfileResponse(BaseSchema):
     years_of_experience: Optional[str] = None
     specialization: Optional[str] = None
     about_you: Optional[str] = None
+    signature_image: Optional[str] = None
     location: Optional[str] = None
     education_and_qualifications: Optional[list[str]] = None
     certification_and_additional_training: Optional[list[str]] = None
@@ -59,6 +60,7 @@ class PsychologistProfileUpdate(BaseSchema):
     years_of_experience: Optional[str] = None
     specialization: Optional[str] = None
     about_you: Optional[str] = None
+    signature_image: Optional[str] = None
     location: Optional[str] = None
     education_and_qualifications: Optional[list[str]] = None
     certification_and_additional_training: Optional[list[str]] = None
@@ -89,6 +91,7 @@ class PsychologistRegisterCreate(BaseSchema):
     years_of_experience: Optional[str] = None
     specialization: Optional[str] = None
     about_you: Optional[str] = None
+    signature_image: Optional[str] = None
     location: Optional[str] = None
     education_and_qualifications: Optional[list[str]] = None
     certification_and_additional_training: Optional[list[str]] = None
@@ -231,6 +234,14 @@ class BookingTransitionPayload(BaseSchema):
 class BookingResponse(BaseSchema):
     id: UUID
     psychologist: Optional[UserResponse] = None
+    psychologist_specialization: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasPath("psychologist", "psychologist_profile", "specialization"),
+    )
+    psychologist_signature_image: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasPath("psychologist", "psychologist_profile", "signature_image"),
+    )
     student: Optional[UserResponse] = None
     date: date
     time: str
@@ -247,7 +258,6 @@ class BookingResponse(BaseSchema):
     booking_type: Optional[BookingType] = None
     session_notes: Optional[Any] = None
     session_notes_updated_at: Optional[datetime] = None
-
 
 class BookingNotesPayload(BaseSchema):
     meeting_platform: Optional[SessionPlatform] = None
