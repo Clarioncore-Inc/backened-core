@@ -32,14 +32,18 @@ from app.accounts.models import User
 from app.settings import FRONTEND_URL
 from app.psychologist.models import PsychologistProfile, AvailabilitySchedule
 from app.admin_panel.schemas import SessionTypeResponse
-router = APIRouter(prefix="/psychologist", tags=["psychologist"])
 
 
-@cbv(router)
+public_router = APIRouter(prefix="/psychologist", tags=["psychologist"])
+psychologist_router = APIRouter(prefix="/psychologist", tags=["psychologist"])
+availability_router = APIRouter(prefix="/psychologist", tags=["psychologist"])
+
+
+@cbv(public_router)
 class PsychologistPublicView:
     db: Session = Depends(get_db)
 
-    @router.post("/register", status_code=status.HTTP_201_CREATED)
+    @public_router.post("/register", status_code=status.HTTP_201_CREATED)
     def register_psychologist(self, payload: PsychologistRegisterCreate):
         try:
             result = service_locator.psychologist_service.register_psychologist(
@@ -52,7 +56,7 @@ class PsychologistPublicView:
             "profile": PsychologistProfileResponse.model_validate(result["profile"]),
         }
 
-    @router.post("/accept-invite", status_code=status.HTTP_201_CREATED)
+    @public_router.post("/accept-invite", status_code=status.HTTP_201_CREATED)
     def accept_invite(self, payload: AcceptInvitePayload):
         try:
             result = service_locator.psychologist_service.accept_invite(
@@ -66,12 +70,12 @@ class PsychologistPublicView:
         }
 
 
-@cbv(router)
+@cbv(psychologist_router)
 class PsychologistView:
     db: Session = Depends(get_db)
     current_user: User = Depends(get_current_active_user)
 
-    @router.get("/list/", response_model=List[PsychologistProfileResponse])
+    @psychologist_router.get("/list/", response_model=List[PsychologistProfileResponse])
     def list_psychologists(
         self,
         status: PsychologistProfileStatus = None,
@@ -94,7 +98,7 @@ class PsychologistView:
 
         return query.all()
 
-    @router.get("/profile", response_model=PsychologistProfileResponse)
+    @psychologist_router.get("/profile", response_model=PsychologistProfileResponse)
     def get_own_profile(self):
         profile = service_locator.psychologist_service.get_profile(
             db=self.db, user_id=self.current_user.id
@@ -103,7 +107,7 @@ class PsychologistView:
             raise HTTPException(status_code=404, detail="Profile not found")
         return profile
 
-    @router.put("/profile", response_model=PsychologistProfileResponse)
+    @psychologist_router.put("/profile", response_model=PsychologistProfileResponse)
     def update_own_profile(self, payload: PsychologistProfileUpdate):
         profile = service_locator.psychologist_service.update_profile(
             db=self.db,
@@ -114,7 +118,7 @@ class PsychologistView:
             raise HTTPException(status_code=404, detail="Profile not found")
         return profile
 
-    @router.post("/admin/invite", response_model=InviteResponse, status_code=201)
+    @psychologist_router.post("/admin/invite", response_model=InviteResponse, status_code=201)
     def invite_psychologist(self, payload: InviteCreate):
         if self.current_user.role != "admin":
             raise HTTPException(status_code=403, detail="Admin only")
@@ -126,20 +130,20 @@ class PsychologistView:
         )
         return invite
 
-    @router.get("/admin/invites", response_model=List[InviteResponse])
+    @psychologist_router.get("/admin/invites", response_model=List[InviteResponse])
     def list_invites(self):
         if self.current_user.role != "admin":
             raise HTTPException(status_code=403, detail="Admin only")
         return service_locator.psychologist_service.list_invites(db=self.db)
 
-    @router.post("/bookings", response_model=BookingResponse, status_code=201)
+    @psychologist_router.post("/bookings", response_model=BookingResponse, status_code=201)
     def create_booking(self, payload: BookingCreate):
         data = payload.model_dump()
         return service_locator.psychologist_service.create_booking(
             db=self.db, student_id=self.current_user.id, data=data
         )
 
-    @router.get("/bookings", response_model=List[BookingResponse])
+    @psychologist_router.get("/bookings", response_model=List[BookingResponse])
     def list_bookings(self, user_id: UUID):
         if self.current_user.role != "admin" and self.current_user.id != user_id:
             raise HTTPException(
@@ -158,7 +162,7 @@ class PsychologistView:
 
         return list({booking.id: booking for booking in [*student_bookings, *psychologist_bookings]}.values())
 
-    @router.get("/bookings/{id}/notes", response_model=BookingNotesResponse)
+    @psychologist_router.get("/bookings/{id}/notes", response_model=BookingNotesResponse)
     def get_booking_notes(self, id: UUID):
         booking = service_locator.psychologist_service.get_booking_notes(
             db=self.db,
@@ -172,7 +176,7 @@ class PsychologistView:
             updated_at=booking.session_notes_updated_at,
         )
 
-    @router.get("/bookings/available-slots")
+    @psychologist_router.get("/bookings/available-slots")
     def get_available_slots(
         self,
         booking_date: date = Query(..., description="e.g. 2025-01-30"),
@@ -185,7 +189,7 @@ class PsychologistView:
         )
         return {"date": booking_date, "available_slots": slots}
 
-    @router.get("/bookings/available-dates")
+    @psychologist_router.get("/bookings/available-dates")
     def get_available_dates(
         self,
         month: str = Query(..., description="e.g. 2025-01"),
@@ -194,7 +198,8 @@ class PsychologistView:
         try:
             parsed_month = datetime.strptime(month, "%Y-%m")
         except ValueError:
-            raise HTTPException(status_code=400, detail="month must be in YYYY-MM format")
+            raise HTTPException(
+                status_code=400, detail="month must be in YYYY-MM format")
 
         available_dates = service_locator.psychologist_service.get_available_dates(
             db=self.db,
@@ -204,7 +209,7 @@ class PsychologistView:
         )
         return {"month": month, "available_dates": available_dates}
 
-    @router.put("/bookings/{id}/notes", response_model=BookingNotesResponse)
+    @psychologist_router.put("/bookings/{id}/notes", response_model=BookingNotesResponse)
     def update_booking_notes(self, id: UUID, payload: BookingNotesPayload):
         booking = service_locator.psychologist_service.upsert_booking_notes(
             db=self.db,
@@ -219,7 +224,7 @@ class PsychologistView:
             updated_at=booking.session_notes_updated_at,
         )
 
-    @router.put("/bookings/{id}", response_model=BookingResponse)
+    @psychologist_router.put("/bookings/{id}", response_model=BookingResponse)
     def update_booking(self, id: UUID, payload: BookingTransitionPayload):
         booking = service_locator.psychologist_service.transition_booking_status(
             db=self.db,
@@ -231,12 +236,12 @@ class PsychologistView:
             raise HTTPException(status_code=404, detail="Booking not found")
         return booking
 
-    @router.get("/session-types", response_model=List[SessionTypeResponse])
+    @psychologist_router.get("/session-types", response_model=List[SessionTypeResponse])
     def list_session_types(self):
         return self.db.query(SessionType).order_by(SessionType.created_at.desc()).all()
 
-    @router.get("/{id}", response_model=PsychologistProfileResponse,
-                dependencies=[Depends(get_current_active_user)])
+    @psychologist_router.get("/{id}", response_model=PsychologistProfileResponse,
+                             dependencies=[Depends(get_current_active_user)])
     def get_psychologis(self, id: UUID):
         course = service_locator.general_service.get(
             db=self.db, key=id, model=PsychologistProfile
@@ -245,7 +250,7 @@ class PsychologistView:
             raise HTTPException(status_code=404, detail="Course not found")
         return course
 
-    @router.put("/{id}", response_model=PsychologistProfileResponse)
+    @psychologist_router.put("/{id}", response_model=PsychologistProfileResponse)
     def update(self, id: UUID, payload: PsychologistProfileUpdate):
 
         data = payload.model_dump(exclude_unset=True, mode="json")
@@ -260,12 +265,12 @@ class PsychologistView:
         return profile
 
 
-@cbv(router)
+@cbv(availability_router)
 class AvailabilityScheduleView:
     db: Session = Depends(get_db)
     current_user: User = Depends(get_current_active_user)
 
-    @router.post("/{id}/availability/", response_model=AvailabilityScheduleResponse)
+    @availability_router.post("/{id}/availability/", response_model=AvailabilityScheduleResponse)
     def create_or_update(self, id: UUID, payload: AvailabilityScheduleCreate):
 
         id = service_locator.psychologist_service.resolve_user_id(self.db, id)
@@ -289,7 +294,7 @@ class AvailabilityScheduleView:
             model=AvailabilitySchedule,
         )
 
-    @router.get("/{id}/availability/", response_model=AvailabilityScheduleResponse)
+    @availability_router.get("/{id}/availability/", response_model=AvailabilityScheduleResponse)
     def get(self, id: UUID):
 
         id = service_locator.psychologist_service.resolve_user_id(self.db, id)
