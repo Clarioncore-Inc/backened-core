@@ -23,6 +23,32 @@ logger = logging.getLogger(__name__)
 class PsychologistService:
     _pending_booking_reminder_cache: dict[str, str] = {}
 
+    def _get_certificate_prefix(self, test_type: Optional[str]) -> str:
+        normalized_test_type = (test_type or "").strip().lower().replace(" ", "_")
+        if "weschler" in normalized_test_type or "wechsler" in normalized_test_type:
+            return "WIQ"
+        return "CIQ"
+
+    def _build_certificate_id(self, db: Session, test_type: Optional[str], booking_date: date) -> str:
+        prefix = self._get_certificate_prefix(test_type)
+        year = booking_date.year
+        certificate_prefix = f"{prefix}-{year}"
+        latest_certificate_id = (
+            db.query(Booking.certificate_id)
+            .filter(Booking.certificate_id.like(f"{certificate_prefix}%"))
+            .order_by(Booking.certificate_id.desc())
+            .first()
+        )
+
+        next_sequence = 0
+        if latest_certificate_id and latest_certificate_id[0]:
+            try:
+                next_sequence = int(latest_certificate_id[0].replace(certificate_prefix, "", 1)) + 1
+            except ValueError:
+                next_sequence = 0
+
+        return f"{certificate_prefix}{next_sequence:05d}"
+
     def remove_signature_background(
         self,
         *,
@@ -471,6 +497,11 @@ class PsychologistService:
         data["student_id"] = student_id
         data["psychologist_id"] = psychologist.user_id
         data["status"] = data.get("status") or BookingStatus.PENDING.value
+        data["certificate_id"] = self._build_certificate_id(
+            db=db,
+            test_type=data.get("test_type"),
+            booking_date=data["date"],
+        )
 
         booking = Booking(**data)
         db.add(booking)

@@ -104,6 +104,8 @@ class Booking(BaseModel):
     date = Column(Date, nullable=False)
     time = Column(String, nullable=False)
     session_type = Column(String, nullable=False)
+    test_type = Column(String, nullable=True)
+    certificate_id = Column(String, nullable=True, unique=True, index=True)
     notes = Column(Text, nullable=True)
     status = Column(BookingStatusEnum, nullable=False, default="pending")
     rejection_reason = Column(Text, nullable=True)

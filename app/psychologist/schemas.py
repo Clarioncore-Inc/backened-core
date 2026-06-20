@@ -143,6 +143,7 @@ class BookingCreate(BaseSchema):
     date: date
     time: Optional[str] = None
     session_type: Optional[str] = None
+    test_type: Optional[str] = None
     notes: Optional[str] = None
     is_recurring: bool = False
     recurring_frequency: Optional[str] = None
@@ -246,6 +247,8 @@ class BookingResponse(BaseSchema):
     date: date
     time: str
     session_type: str
+    test_type: Optional[str] = None
+    certificate_id: Optional[str] = None
     notes: Optional[str] = None
     status: str
     rejection_reason: Optional[str] = None
