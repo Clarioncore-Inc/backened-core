@@ -1,6 +1,8 @@
-from typing import Any, Dict, Optional
-from uuid import UUID
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
 from app.core.schema import BaseSchema
 
 
@@ -71,4 +73,91 @@ class MeetingConfigResponse(BaseSchema):
     password: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+# ── Genius Profiles ────────────────────────────────────────────────────────────
+
+class GeniusProfileType(str, Enum):
+    historical = "historical"
+    fictional = "fictional"
+    public_intellectual = "public_intellectual"
+
+
+class GeniusPublicationStatus(str, Enum):
+    draft = "draft"
+    published = "published"
+    archived = "archived"
+
+
+class GeniusCreate(BaseSchema):
+    id: Optional[str] = None  # slug-style; auto-generated from full_name if omitted
+    full_name: str
+    iq_score: Optional[int] = None
+    birth_date: Optional[str] = None
+    death_date: Optional[str] = None
+    birth_place: str
+    zodiac_sign: Optional[str] = None
+    biography: str
+    short_description: str
+    era: str
+    is_historical: bool = True
+    is_fictional: bool = False
+    profile_type: GeniusProfileType = GeniusProfileType.historical
+    publication_status: GeniusPublicationStatus = GeniusPublicationStatus.draft
+    editorial_note: Optional[str] = None
+    source_url: Optional[str] = None
+    profile_image_url: Optional[str] = None
+
+
+class GeniusUpdate(BaseSchema):
+    full_name: Optional[str] = None
+    iq_score: Optional[int] = None
+    birth_date: Optional[str] = None
+    death_date: Optional[str] = None
+    birth_place: Optional[str] = None
+    zodiac_sign: Optional[str] = None
+    biography: Optional[str] = None
+    short_description: Optional[str] = None
+    era: Optional[str] = None
+    is_historical: Optional[bool] = None
+    is_fictional: Optional[bool] = None
+    profile_type: Optional[GeniusProfileType] = None
+    publication_status: Optional[GeniusPublicationStatus] = None
+    editorial_note: Optional[str] = None
+    source_url: Optional[str] = None
+    profile_image_url: Optional[str] = None
+
+
+class GeniusResponse(BaseSchema):
+    id: str
+    slug: str
+    full_name: str
+    iq_score: Optional[int]
+    iq_score_label: str
+    iq_score_note: str
+    birth_date: Optional[str]
+    death_date: Optional[str]
+    birth_place: str
+    zodiac_sign: Optional[str]
+    biography: str
+    short_description: str
+    era: str
+    profile_type: str
+    is_historical: bool
+    is_fictional: bool
+    editorial_note: str
+    publication_status: str
+    source_url: Optional[str]
+    profile_image_url: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+
+class GeniusListResponse(BaseSchema):
+    items: List[GeniusResponse]
+    total: int
+
+
+class GeniusStatusUpdate(BaseSchema):
+    publication_status: GeniusPublicationStatus
 

@@ -11,3 +11,4 @@ from app.discussions.models import DiscussionPost, DiscussionReply, DiscussionLi
 from app.learner.models import LearningGoal, LearnerProfile, LearnerDailyActivity  # noqa
 from app.psychologist.models import PsychologistProfile, Booking, PsychologistInvite, SessionType, MeetingConfig  # noqa
 from app.notes.models import Note  # noqa
+from app.admin_panel.models import GeniusProfile  # noqa

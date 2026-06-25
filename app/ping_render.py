@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     await asyncio.get_event_loop().run_in_executor(None, run_migrations)
     await asyncio.get_event_loop().run_in_executor(None, seed_app_settings)
+    await asyncio.get_event_loop().run_in_executor(None, seed_genius_profiles)
     yield
     logging.info("🛑 LIFESPAN ENDED: Stopping scheduler")
     scheduler.shutdown()
@@ -77,5 +78,29 @@ def seed_app_settings():
             )
             return
         logging.info("✅ App settings seeded")
+    finally:
+        db.close()
+
+
+def seed_genius_profiles():
+    from app.admin_panel.models import GeniusProfile, _iq_label, _iq_note
+    from app.admin_panel.genius_seed_data import GENIUS_SEEDS
+
+    db = SessionLocal()
+    try:
+        existing = db.query(GeniusProfile).count()
+        if existing > 0:
+            return
+        for seed in GENIUS_SEEDS:
+            data = {
+                **seed,
+                "slug": seed["id"],
+                "iq_score_label": _iq_label(seed.get("iq_score"), seed.get("profile_type", "historical")),
+                "iq_score_note": _iq_note(seed.get("iq_score")),
+            }
+            service_locator.general_service.create(db=db, data=data, model=GeniusProfile)
+        logging.info("✅ Seeded %d genius profiles", len(GENIUS_SEEDS))
+    except Exception:
+        logging.exception("❌ Failed to seed genius profiles")
     finally:
         db.close()

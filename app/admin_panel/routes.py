@@ -1,4 +1,5 @@
-from typing import List
+import re
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,7 +15,13 @@ from app.courses.models import Course
 from app.courses.schemas import CourseResponse
 from app.lessons.models import Section
 from app.psychologist.models import MeetingConfig, SessionType
+from app.admin_panel.models import GeniusProfile, _iq_label, _iq_note
 from app.admin_panel.schemas import (
+    GeniusCreate,
+    GeniusListResponse,
+    GeniusResponse,
+    GeniusStatusUpdate,
+    GeniusUpdate,
     MeetingConfigResponse,
     MeetingConfigUpsert,
     PlatformAnalyticsResponse,
@@ -189,3 +196,132 @@ class AdminView:
         self.db.commit()
         self.db.refresh(config)
         return config
+
+    # ── Genius Profiles ────────────────────────────────────────────────────────
+
+    @router.get("/genius-profiles", response_model=GeniusListResponse)
+    def list_genius_profiles(
+        self,
+        query: Optional[str] = None,
+        status: Optional[str] = None,
+        profile_type: Optional[str] = None,
+    ):
+        q = self.db.query(GeniusProfile)
+        if status:
+            q = q.filter(GeniusProfile.publication_status == status)
+        if profile_type:
+            q = q.filter(GeniusProfile.profile_type == profile_type)
+        if query:
+            search = f"%{query}%"
+            q = q.filter(
+                GeniusProfile.full_name.ilike(search)
+                | GeniusProfile.short_description.ilike(search)
+            )
+        items = q.all()
+        return {"items": items, "total": len(items)}
+
+    @router.post("/genius-profiles", response_model=GeniusResponse, status_code=status.HTTP_201_CREATED)
+    def create_genius_profile(self, payload: GeniusCreate):
+        data = payload.model_dump()
+
+        genius_id = data.get("id")
+        if genius_id:
+            if service_locator.general_service.get(self.db, genius_id, GeniusProfile):
+                raise HTTPException(status_code=409, detail="A profile with this ID already exists")
+        else:
+            base = re.sub(r"[^a-z0-9\s-]", "", data["full_name"].lower())
+            base = re.sub(r"\s+", "-", base.strip())
+            candidate, counter = base, 2
+            while self.db.query(GeniusProfile).filter(GeniusProfile.id == candidate).first():
+                candidate = f"{base}-{counter}"
+                counter += 1
+            genius_id = candidate
+
+        data["id"] = genius_id
+        data["slug"] = genius_id
+        data["iq_score_label"] = _iq_label(data.get("iq_score"), data.get("profile_type", "historical"))
+        data["iq_score_note"] = _iq_note(data.get("iq_score"))
+        if not data.get("editorial_note"):
+            data["editorial_note"] = "Editorial profile for learning inspiration. Intelligence labels are contextual and should be read as estimates where shown."
+
+        return service_locator.general_service.create(self.db, data, GeniusProfile)
+
+    @router.get("/genius-profiles/{genius_id}", response_model=GeniusResponse)
+    def get_genius_profile(self, genius_id: str):
+        profile = service_locator.general_service.get(self.db, genius_id, GeniusProfile)
+        if not profile:
+            raise HTTPException(status_code=404, detail="Genius profile not found")
+        return profile
+
+    @router.put("/genius-profiles/{genius_id}", response_model=GeniusResponse)
+    def update_genius_profile(self, genius_id: str, payload: GeniusUpdate):
+        data = payload.model_dump(exclude_unset=True)
+
+        if "iq_score" in data or "profile_type" in data:
+            existing = service_locator.general_service.get(self.db, genius_id, GeniusProfile)
+            if not existing:
+                raise HTTPException(status_code=404, detail="Genius profile not found")
+            iq = data.get("iq_score", existing.iq_score)
+            pt = data.get("profile_type", existing.profile_type)
+            data["iq_score_label"] = _iq_label(iq, pt)
+            data["iq_score_note"] = _iq_note(iq)
+
+        updated = service_locator.general_service.update_data(
+            self.db, genius_id, data, GeniusProfile
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Genius profile not found")
+        return updated
+
+    @router.patch("/genius-profiles/{genius_id}/status", response_model=GeniusResponse)
+    def update_genius_status(self, genius_id: str, payload: GeniusStatusUpdate):
+        updated = service_locator.general_service.update_data(
+            self.db, genius_id, {"publication_status": payload.publication_status}, GeniusProfile
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Genius profile not found")
+        return updated
+
+    @router.delete("/genius-profiles/{genius_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_genius_profile(self, genius_id: str):
+        if not service_locator.general_service.delete(self.db, genius_id, GeniusProfile):
+            raise HTTPException(status_code=404, detail="Genius profile not found")
+
+
+# ── Public genius routes (no auth required) ────────────────────────────────────
+
+public_genius_router = APIRouter(prefix="/genius-profiles", tags=["genius"])
+
+
+@public_genius_router.get("", response_model=GeniusListResponse)
+def list_published_genius_profiles(
+    query: Optional[str] = None,
+    era: Optional[str] = None,
+    profile_type: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    q = db.query(GeniusProfile).filter(GeniusProfile.publication_status == "published")
+    if era:
+        q = q.filter(GeniusProfile.era == era)
+    if profile_type:
+        q = q.filter(GeniusProfile.profile_type == profile_type)
+    if query:
+        search = f"%{query}%"
+        q = q.filter(
+            GeniusProfile.full_name.ilike(search)
+            | GeniusProfile.short_description.ilike(search)
+        )
+    items = q.all()
+    return {"items": items, "total": len(items)}
+
+
+@public_genius_router.get("/{genius_id}", response_model=GeniusResponse)
+def get_published_genius_profile(genius_id: str, db: Session = Depends(get_db)):
+    profile = (
+        db.query(GeniusProfile)
+        .filter(GeniusProfile.id == genius_id, GeniusProfile.publication_status == "published")
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Genius profile not found")
+    return profile

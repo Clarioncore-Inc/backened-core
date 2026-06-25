@@ -8,7 +8,6 @@ from app.courses.models import Course
 from app.enrollments.models import Enrollment
 from app.payments.models import Payment
 
-# In-memory settings store (replace with DB-backed model if needed)
 _platform_settings: Dict[str, Any] = {
     "platform_name": "CerebroLearn",
     "maintenance_mode": False,
@@ -16,6 +15,7 @@ _platform_settings: Dict[str, Any] = {
     "default_currency": "USD",
     "platform_fee_rate": 0.20,
 }
+
 
 class AdminService:
     def get_all_users(self, db: Session) -> List[User]:

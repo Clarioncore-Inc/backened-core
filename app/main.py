@@ -36,7 +36,7 @@ from app.discussions.routes import router as discussions_router
 from app.learner.routes import router as learner_router
 from app.psychologist.routes import public_router, psychologist_router, availability_router
 
-from app.admin_panel.routes import router as admin_router
+from app.admin_panel.routes import router as admin_router, public_genius_router
 from app.creator.routes import router as creator_router
 from app.gamification.routes import router as leaderboard_router
 from app.attachment.routes import router as attachments_router
@@ -97,6 +97,7 @@ app.include_router(public_router, prefix=API_PREFIX)
 app.include_router(availability_router, prefix=API_PREFIX)
 app.include_router(general_router, prefix=API_PREFIX)
 app.include_router(admin_router, prefix=API_PREFIX)
+app.include_router(public_genius_router, prefix=API_PREFIX)
 app.include_router(creator_router, prefix=API_PREFIX)
 app.include_router(leaderboard_router, prefix=API_PREFIX)
 app.include_router(attachments_router, prefix=API_PREFIX)
